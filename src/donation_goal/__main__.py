@@ -11,6 +11,8 @@ DATA_DIR = Path("data")
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    # httpx logs full request URLs at INFO, and the DonateX hub URL carries the token.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
     DATA_DIR.mkdir(exist_ok=True)
     store = Store(DATA_DIR / "app.db")
     print("Настройки:  http://127.0.0.1:8000/\nОверлей:    http://127.0.0.1:8000/overlay")

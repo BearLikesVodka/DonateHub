@@ -57,3 +57,11 @@ pub fn port_free(port: u16) -> bool {
     let addr: SocketAddr = ([127, 0, 0, 1], port).into();
     s.bind(&addr.into()).is_ok()
 }
+
+/// `DONATEHUB_PORT` (if valid) > saved `port` setting (if valid) > 47321.
+pub fn resolve_port(store: &crate::store::Store, env: &impl Fn(&str) -> Option<String>) -> u16 {
+    env(PORT_ENV)
+        .and_then(|s| valid_port_str(&s))
+        .or_else(|| store.get_setting("port").ok().flatten().and_then(|v| valid_port_json(&v)))
+        .unwrap_or(DEFAULT_PORT)
+}

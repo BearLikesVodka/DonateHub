@@ -1,3 +1,6 @@
+mod desktop;
+mod tray;
+
 use clap::Parser;
 use donatehub_core::app::build;
 use donatehub_core::config::{data_dir_from_env, resolve_port};
@@ -30,8 +33,7 @@ fn main() -> anyhow::Result<()> {
     if cli.headless {
         return run_headless(store, port);
     }
-    let _ = cli.hidden;
-    anyhow::bail!("окно пока не реализовано, запустите с --headless")
+    std::process::exit(desktop::run(store, port, cli.hidden)?)
 }
 
 fn run_headless(store: Store, port: u16) -> anyhow::Result<()> {

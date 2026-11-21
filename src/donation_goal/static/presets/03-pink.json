@@ -1,0 +1,6 @@
+{"name": "Розовый", "style": {
+  "elements": {"progress_format": "amount_percent", "show_bounds": true, "time_pos": "hidden"},
+  "bar": {"height_vw": 5, "radius_vw": 0.6, "bg": {"mode": "color", "color1": "rgba(60,60,60,0.9)"},
+          "fill": {"mode": "gradient", "color1": "#c2187a", "color2": "#ff3fa8", "angle": 90}},
+  "fonts": {"title": {"size_vw": 3, "family": "Rubik"}, "progress": {"size_vw": 3, "family": "Rubik"}}
+}}

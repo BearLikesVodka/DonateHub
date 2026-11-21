@@ -1,0 +1,6 @@
+{"name": "Тёмный неон", "style": {
+  "elements": {"backdrop": true, "backdrop_color": "rgba(0,0,0,0.85)", "progress_format": "amount_percent", "progress_pos": "bottom"},
+  "bar": {"height_vw": 2.5, "radius_vw": 1.25, "bg": {"mode": "color", "color1": "rgba(255,255,255,0.12)"},
+          "fill": {"mode": "gradient", "color1": "#ff7a00", "color2": "#c2187a", "angle": 90}},
+  "fonts": {"title": {"family": "Unbounded", "size_vw": 3, "weight": 700}, "progress": {"family": "Unbounded", "size_vw": 2.6, "weight": 500, "color": "#ffb36b"}}
+}}

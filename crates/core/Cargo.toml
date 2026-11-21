@@ -1,0 +1,15 @@
+[package]
+name = "donatehub-core"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow = "1.0.104"
+chrono = { version = "0.4.45", features = ["serde"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+socket2 = "0.6.5"
+
+[dev-dependencies]
+tempfile = "3.27.0"

@@ -6,3 +6,4 @@ pub mod style;
 pub mod currency;
 pub mod hub;
 pub mod collectors;
+pub mod app;

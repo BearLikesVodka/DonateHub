@@ -1,6 +1,7 @@
 pub mod base;
 pub mod donationalerts;
 pub mod donatex;
+pub mod manager;
 pub mod signalr;
 
 /// JSON number, or a string holding one (platform APIs are not consistent about it).

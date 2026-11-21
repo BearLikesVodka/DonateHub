@@ -1,1 +1,80 @@
-<!doctype html><title>admin</title>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Цель донатов — настройки</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+  <aside class="side">
+    <div class="brand">
+      <span class="brand-bar"><span></span></span>
+      Цель донатов
+    </div>
+    <nav>
+      <a href="#goal">Текущая цель</a>
+      <a href="#design">Дизайн виджета</a>
+      <a href="#history">История сборов</a>
+      <a href="#connections">Подключения</a>
+    </nav>
+    <div class="side-status" id="side-status"></div>
+  </aside>
+
+  <main>
+    <section id="tab-goal" class="tab" hidden>
+      <h1>Текущая цель</h1>
+      <div id="goal-view"></div>
+    </section>
+
+    <section id="tab-design" class="tab" hidden>
+      <h1>Дизайн виджета</h1>
+      <div class="design">
+        <div class="stage-wrap">
+          <div class="stage game" id="stage">
+            <iframe id="preview" src="/overlay?preview=1" title="Превью виджета"></iframe>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="game-bg" checked>
+            <span class="track"></span>
+            Игровой фон
+          </label>
+        </div>
+        <div class="presets">
+          <h2>Пресеты</h2>
+          <p class="hint">Клик применяет пресет к форме. Чтобы он попал в OBS, сохраните изменения.</p>
+          <div class="preset-grid" id="presets"></div>
+        </div>
+      </div>
+
+      <div class="subtabs" role="tablist">
+        <button role="tab" data-sub="elements" aria-selected="true">Элементы</button>
+        <button role="tab" data-sub="bar" aria-selected="false">Индикатор</button>
+        <button role="tab" data-sub="fonts" aria-selected="false">Шрифты</button>
+      </div>
+      <div class="form" id="style-form"></div>
+      <div class="savebar">
+        <button class="btn primary" id="save-style">Сохранить изменения</button>
+        <button class="btn ghost" id="reset-style">Отменить</button>
+        <span class="dirty" id="dirty" hidden>Есть несохранённые изменения</span>
+      </div>
+    </section>
+
+    <section id="tab-history" class="tab" hidden>
+      <h1>История сборов</h1>
+      <div id="history-view"></div>
+    </section>
+
+    <section id="tab-connections" class="tab" hidden>
+      <h1>Подключения</h1>
+      <div id="connections-view"></div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <datalist id="font-list"></datalist>
+  <script type="module" src="/static/admin.js"></script>
+</body>
+</html>

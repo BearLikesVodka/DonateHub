@@ -4,6 +4,14 @@ html, body {
   overflow: hidden;
 }
 
+/* In the settings preview, center the widget over the fake game scene. */
+body.preview {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
 #root {
   padding: 1vw 1.5vw;
   box-sizing: border-box;

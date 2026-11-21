@@ -4,6 +4,7 @@ const root = document.getElementById("root");
 const params = new URLSearchParams(location.search);
 
 if (params.has("preview")) {
+  document.body.classList.add("preview");
   // Settings page drives the preview with unsaved styles.
   window.addEventListener("message", (e) => {
     if (e.origin === location.origin && e.data?.type === "preview") render(root, e.data.snapshot);

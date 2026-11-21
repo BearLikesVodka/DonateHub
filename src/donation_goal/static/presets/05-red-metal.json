@@ -1,7 +1,7 @@
 {"name": "Красный металл", "style": {
   "elements": {"text_align": "center", "progress_format": "amount_target", "title_pos": "hidden"},
   "bar": {"height_vw": 6, "radius_vw": 3, "border_vw": 0.25, "border_color": "#9a9a9a",
-          "bg": {"mode": "gradient", "color1": "#f2f2f2", "color2": "#a8a8a8", "angle": 180},
-          "fill": {"mode": "gradient", "color1": "#e05050", "color2": "#8a1f1f", "angle": 180}},
+          "bg": {"mode": "gradient", "color1": "#f2f2f2", "color2": "#a8a8a8", "angle": 90},
+          "fill": {"mode": "gradient", "color1": "#e05050", "color2": "#8a1f1f", "angle": 90}},
   "fonts": {"progress": {"family": "Oswald", "size_vw": 3.2, "color": "#2a2a2a", "shadow": false, "weight": 600}}
 }}

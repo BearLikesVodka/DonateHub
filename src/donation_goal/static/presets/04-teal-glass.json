@@ -1,7 +1,7 @@
 {"name": "Бирюзовое стекло", "style": {
   "elements": {"text_align": "center", "progress_format": "amount_target"},
   "bar": {"height_vw": 6, "radius_vw": 3, "border_vw": 0.3, "border_color": "rgba(255,255,255,0.6)",
-          "bg": {"mode": "gradient", "color1": "rgba(255,255,255,0.25)", "color2": "rgba(255,255,255,0.05)", "angle": 180},
-          "fill": {"mode": "gradient", "color1": "#00b3b3", "color2": "#00ffe1", "angle": 90}},
+          "bg": {"mode": "gradient", "color1": "rgba(255,255,255,0.25)", "color2": "rgba(255,255,255,0.05)", "angle": 90},
+          "fill": {"mode": "gradient", "color1": "#00b3b3", "color2": "#00ffe1", "angle": 0}},
   "fonts": {"title": {"family": "Montserrat", "size_vw": 3.2}, "progress": {"family": "Montserrat", "size_vw": 3, "color": "#0b2b2b", "shadow": false}}
 }}

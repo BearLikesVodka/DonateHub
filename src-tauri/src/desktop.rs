@@ -47,7 +47,6 @@ pub fn show_window(app: &AppHandle) {
     }
 }
 
-#[expect(dead_code, reason = "used by the tray")]
 pub fn toggle_window(app: &AppHandle) {
     let Some(w) = app.get_webview_window(MAIN) else { return };
     let shown = w.is_visible().unwrap_or(false) && !w.is_minimized().unwrap_or(false);

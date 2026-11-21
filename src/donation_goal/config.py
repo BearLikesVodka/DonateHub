@@ -31,6 +31,8 @@ def resolve_port(store: Store, env: Mapping[str, str] = os.environ) -> int:
 
 def port_free(port: int) -> bool:
     with socket.socket() as s:
+        # Same option uvicorn uses, so lingering TIME_WAIT connections don't count as "busy".
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             s.bind(("127.0.0.1", port))
         except OSError:

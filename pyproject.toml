@@ -8,6 +8,8 @@ dependencies = [
     "uvicorn[standard]",
     "httpx",
     "websockets",
+    "PySide6-Essentials>=6.12",
+    "PySide6-WebEngine>=6.12",
 ]
 
 [project.scripts]

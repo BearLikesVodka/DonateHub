@@ -35,3 +35,18 @@ def test_port_free_detects_busy_port():
     assert port_free(port) is False
     s.close()
     assert port_free(port) is True
+
+
+def test_port_free_ignores_time_wait():
+    # Right after the app quits, server-closed connections linger in TIME_WAIT; uvicorn can still bind (SO_REUSEADDR).
+    srv = socket.socket()
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen()
+    port = srv.getsockname()[1]
+    cli = socket.create_connection(("127.0.0.1", port))
+    conn, _ = srv.accept()
+    conn.close()  # server side closes first -> TIME_WAIT on the server port
+    srv.close()
+    cli.close()
+    assert port_free(port) is True

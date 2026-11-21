@@ -7,12 +7,12 @@ import httpx
 
 from conftest import make_donation, t
 from donation_goal.collectors.donationalerts import (
-    REDIRECT_URI,
     DACollector,
     authorize_url,
     extract_push_donation,
     parse_created_at,
     parse_da_donation,
+    redirect_uri,
 )
 
 
@@ -63,11 +63,12 @@ def test_extract_push_donation():
 
 
 def test_authorize_url():
-    u = urlsplit(authorize_url("7", "st"))
+    assert redirect_uri(47321) == "http://127.0.0.1:47321/auth/da/callback"
+    u = urlsplit(authorize_url("7", "st", redirect_uri(47321)))
     assert u.netloc == "www.donationalerts.com" and u.path == "/oauth/authorize"
     q = parse_qs(u.query)
     assert q["client_id"] == ["7"] and q["response_type"] == ["code"] and q["state"] == ["st"]
-    assert q["redirect_uri"] == [REDIRECT_URI]
+    assert q["redirect_uri"] == ["http://127.0.0.1:47321/auth/da/callback"]
     assert q["scope"] == ["oauth-user-show oauth-donation-subscribe oauth-donation-index"]
 
 

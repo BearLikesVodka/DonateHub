@@ -11,13 +11,14 @@ from urllib.parse import urlsplit
 import httpx
 from fastapi import Body, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import AwareDatetime, BaseModel, Field
 
 from .collectors import donationalerts as da
 from .collectors.base import CollectorStatus, describe_error, run_forever
 from .collectors.donatex import DonateXCollector
+from .config import DEFAULT_PORT, resolve_port
 from .currency import RateProvider
 from .hub import Hub
 from .models import Donation, to_iso
@@ -50,6 +51,10 @@ class DebugDonation(BaseModel):
     username: str = "Тест"
 
 
+class PortSettings(BaseModel):
+    port: int = Field(ge=1024, le=65535)
+
+
 class DXSettings(BaseModel):
     token: str = Field(min_length=1)
 
@@ -60,8 +65,9 @@ class DASettings(BaseModel):
 
 
 class Collectors:
-    def __init__(self, store: Store, hub: Hub):
+    def __init__(self, store: Store, hub: Hub, port: int):
         self.store = store
+        self.port = port
         self.hub = hub
         self.client: httpx.AsyncClient | None = None
         self.rates: RateProvider | None = None
@@ -126,13 +132,19 @@ class Collectors:
             out[name] = {"configured": self.configured(name), "state": st.state, "error": st.error}
         out["da"]["has_client"] = bool(da_cfg.get("client_id") and da_cfg.get("client_secret"))
         out["da"]["client_id"] = da_cfg.get("client_id", "")
-        out["da"]["redirect_uri"] = da.REDIRECT_URI
+        out["da"]["redirect_uri"] = da.redirect_uri(self.port)
         return out
 
 
-def create_app(store: Store, start_collectors: bool = True) -> FastAPI:
+DA_DONE_PAGE = """<!doctype html><html lang="ru"><meta charset="utf-8"><title>DonationAlerts подключён</title>
+<body style="font-family:system-ui,sans-serif;background:#1c1c1e;color:#ececee;display:grid;place-items:center;height:100vh;margin:0">
+<div style="text-align:center"><h1 style="font-weight:600">DonationAlerts подключён</h1>
+<p style="color:#9d9da4">Вкладку можно закрыть и вернуться в приложение.</p></div></body></html>"""
+
+
+def create_app(store: Store, start_collectors: bool = True, port: int = DEFAULT_PORT) -> FastAPI:
     hub = Hub(store)
-    collectors = Collectors(store, hub)
+    collectors = Collectors(store, hub, port)
     oauth_states: set[str] = set()
 
     @asynccontextmanager
@@ -186,7 +198,13 @@ def create_app(store: Store, start_collectors: bool = True) -> FastAPI:
 
     @app.get("/api/state")
     async def state():
-        return {**hub.snapshot(), "platforms": collectors.platforms()}
+        return {**hub.snapshot(), "platforms": collectors.platforms(),
+                "port": {"current": port, "saved": resolve_port(store)}}
+
+    @app.put("/api/settings/port")
+    async def set_port(body: PortSettings):
+        store.set_setting("port", body.port)
+        return {"current": port, "saved": resolve_port(store)}
 
     @app.get("/api/presets")
     async def presets():
@@ -269,7 +287,7 @@ def create_app(store: Store, start_collectors: bool = True) -> FastAPI:
             raise HTTPException(400, "сначала укажите client_id и client_secret")
         state = secrets.token_urlsafe(16)
         oauth_states.add(state)
-        return RedirectResponse(da.authorize_url(cfg["client_id"], state))
+        return RedirectResponse(da.authorize_url(cfg["client_id"], state, da.redirect_uri(port)))
 
     @app.get("/auth/da/callback")
     async def da_callback(state: str = "", code: str = "", error: str = ""):
@@ -281,11 +299,12 @@ def create_app(store: Store, start_collectors: bool = True) -> FastAPI:
         cfg = store.get_setting("da") or {}
         async with httpx.AsyncClient() as client:
             try:
-                cfg = await da.exchange_code(client, cfg, code)
+                cfg = await da.exchange_code(client, cfg, code, da.redirect_uri(port))
             except httpx.HTTPError as e:
                 raise HTTPException(502, f"обмен кода не удался: {e}")
         store.set_setting("da", cfg)
         collectors.restart("da")
-        return RedirectResponse("/#connections", status_code=303)
+        # This page opens in the system browser, not in the app window.
+        return HTMLResponse(DA_DONE_PAGE)
 
     return app

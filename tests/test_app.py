@@ -154,3 +154,40 @@ def test_backdated_goal_triggers_backfill():
         c.patch("/api/goal", json={"started_at": "2026-10-01T00:00:00Z"})
         c.patch("/api/goal", json={"title": "B"})
     assert [d.isoformat() for d in fake.calls] == ["2026-11-01T00:00:00+00:00", "2026-10-01T00:00:00+00:00"]
+
+
+def test_redirect_uri_follows_port():
+    app = create_app(Store(":memory:"), start_collectors=False, port=50001)
+    with TestClient(app, base_url="http://127.0.0.1:50001") as c:
+        state = c.get("/api/state").json()
+        assert state["platforms"]["da"]["redirect_uri"] == "http://127.0.0.1:50001/auth/da/callback"
+        assert state["port"]["current"] == 50001
+        c.put("/api/platforms/da", json={"client_id": "7", "client_secret": "s"})
+        loc = c.get("/auth/da/start", follow_redirects=False).headers["location"]
+        assert "127.0.0.1%3A50001%2Fauth%2Fda%2Fcallback" in loc
+
+
+def test_port_setting_validation(client):
+    assert client.put("/api/settings/port", json={"port": 70000}).status_code == 422
+    assert client.put("/api/settings/port", json={"port": 80}).status_code == 422
+    assert client.put("/api/settings/port", json={"port": 48000}).status_code == 200
+    port = client.get("/api/state").json()["port"]
+    assert port["saved"] == 48000 and port["current"] == 47321
+
+
+def test_da_callback_success_page(client, monkeypatch):
+    from donation_goal.collectors import donationalerts as da
+
+    async def fake_exchange(http, cfg, code, redirect):
+        assert code == "abc" and redirect.endswith(":47321/auth/da/callback")
+        return {**cfg, "access_token": "AT", "refresh_token": "RT", "expires_at": 9e18}
+
+    monkeypatch.setattr(da, "exchange_code", fake_exchange)
+    client.put("/api/platforms/da", json={"client_id": "7", "client_secret": "s"})
+    loc = client.get("/auth/da/start", follow_redirects=False).headers["location"]
+    state = loc.split("state=")[1].split("&")[0]
+    r = client.get(f"/auth/da/callback?code=abc&state={state}", follow_redirects=False)
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/html")
+    assert "подключён" in r.text
+    assert client.get("/api/state").json()["platforms"]["da"]["configured"] is True

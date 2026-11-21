@@ -17,7 +17,6 @@ log = logging.getLogger(__name__)
 
 SITE = "https://www.donationalerts.com"
 CENTRIFUGO_URL = "wss://centrifugo.donationalerts.com/connection/websocket"
-REDIRECT_URI = "http://127.0.0.1:8000/auth/da/callback"
 SCOPES = "oauth-user-show oauth-donation-subscribe oauth-donation-index"
 SETTINGS_KEY = "da"
 REFRESH_MARGIN = 86400
@@ -29,8 +28,12 @@ class Rates(Protocol):
     async def to_rub(self, amount: float, currency: str) -> float | None: ...
 
 
-def authorize_url(client_id: str, state: str) -> str:
-    q = urlencode({"client_id": client_id, "redirect_uri": REDIRECT_URI, "response_type": "code",
+def redirect_uri(port: int) -> str:
+    return f"http://127.0.0.1:{port}/auth/da/callback"
+
+
+def authorize_url(client_id: str, state: str, redirect: str) -> str:
+    q = urlencode({"client_id": client_id, "redirect_uri": redirect, "response_type": "code",
                    "scope": SCOPES, "state": state})
     return f"{SITE}/oauth/authorize?{q}"
 
@@ -45,10 +48,10 @@ def _apply_token(cfg: dict, resp: dict) -> dict:
     }
 
 
-async def exchange_code(client: httpx.AsyncClient, cfg: dict, code: str) -> dict:
+async def exchange_code(client: httpx.AsyncClient, cfg: dict, code: str, redirect: str) -> dict:
     resp = await client.post(f"{SITE}/oauth/token", data={
         "grant_type": "authorization_code", "client_id": cfg["client_id"],
-        "client_secret": cfg["client_secret"], "redirect_uri": REDIRECT_URI, "code": code,
+        "client_secret": cfg["client_secret"], "redirect_uri": redirect, "code": code,
     }, timeout=15)
     resp.raise_for_status()
     return _apply_token(cfg, resp.json())

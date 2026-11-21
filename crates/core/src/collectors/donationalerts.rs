@@ -167,6 +167,7 @@ pub struct DACollector {
     client: reqwest::Client,
     site: String,
     centrifugo_url: String,
+    ping_interval: Duration,
 }
 
 impl DACollector {
@@ -178,7 +179,13 @@ impl DACollector {
         site: String,
         centrifugo_url: String,
     ) -> DACollector {
-        DACollector { store, rates, on_new, client, site, centrifugo_url }
+        DACollector { store, rates, on_new, client, site, centrifugo_url, ping_interval: CENTRIFUGO_PING }
+    }
+
+    /// Centrifugo ping period; silence for three periods means a dead connection.
+    pub fn with_ping_interval(mut self, interval: Duration) -> DACollector {
+        self.ping_interval = interval;
+        self
     }
 
     pub async fn ensure_token(&self) -> anyhow::Result<String> {
@@ -301,7 +308,7 @@ impl DACollector {
         let socket_token = user["socket_connection_token"].as_str().ok_or_else(|| anyhow!("no socket token"))?;
         let channel = format!("$alerts:donation_{user_id}");
 
-        let (ws, _) = tokio_tungstenite::connect_async(self.centrifugo_url.as_str()).await?;
+        let ws = super::connect_ws(&self.centrifugo_url, super::WS_CONNECT_TIMEOUT).await?;
         let (mut sink, mut stream) = ws.split();
         let send = |v: Value| Message::Text(v.to_string().into());
         sink.send(send(json!({"params": {"token": socket_token}, "id": 1}))).await?;
@@ -334,10 +341,14 @@ impl DACollector {
         }
         self.fix_missing_rub().await?;
 
-        let mut ping = tokio::time::interval_at(tokio::time::Instant::now() + CENTRIFUGO_PING, CENTRIFUGO_PING);
+        let mut ping = tokio::time::interval_at(tokio::time::Instant::now() + self.ping_interval, self.ping_interval);
         let hour = Duration::from_secs(3600);
         let mut fix_rub = tokio::time::interval_at(tokio::time::Instant::now() + hour, hour);
         let mut n = 100;
+        // Our pings get answers, so silence for 3 ping periods means a dead connection.
+        // One deadline for the whole loop: it moves only when a frame arrives, not on every ping tick.
+        let silence = tokio::time::sleep(self.ping_interval * 3);
+        tokio::pin!(silence);
         loop {
             tokio::select! {
                 _ = ping.tick() => {
@@ -349,9 +360,10 @@ impl DACollector {
                         tracing::warn!("DonationAlerts: fix rub failed: {e:#}");
                     }
                 }
-                // Our pings get answers, so silence for 3 ping periods means a dead connection.
-                frame = tokio::time::timeout(CENTRIFUGO_PING * 3, stream.next()) => {
-                    let frame = frame.context("Centrifugo: no messages")?.ok_or_else(|| anyhow!("Centrifugo closed"))??;
+                _ = &mut silence => bail!("Centrifugo: no messages"),
+                frame = stream.next() => {
+                    let frame = frame.ok_or_else(|| anyhow!("Centrifugo closed"))??;
+                    silence.as_mut().reset(tokio::time::Instant::now() + self.ping_interval * 3);
                     for msg in messages(&frame_text(frame).unwrap_or_default()) {
                         if msg["id"] == 2 && !msg["error"].is_null() {
                             bail!("Centrifugo subscribe: {}", msg["error"]);

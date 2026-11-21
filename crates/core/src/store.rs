@@ -145,11 +145,13 @@ impl Store {
         started_at: DateTime<Utc>,
         ends_at: Option<DateTime<Utc>>,
     ) -> Result<std::result::Result<Goal, GoalExists>> {
-        if self.active_goal()?.is_some() {
-            return Ok(Err(GoalExists));
-        }
         let id = {
+            // Check and insert under one lock: parallel requests must not both see "no active goal".
             let db = self.db();
+            let active: i64 = db.query_row("SELECT COUNT(*) FROM goals WHERE closed_at IS NULL", [], |r| r.get(0))?;
+            if active > 0 {
+                return Ok(Err(GoalExists));
+            }
             db.execute(
                 "INSERT INTO goals (title, target_rub, started_at, ends_at) VALUES (?,?,?,?)",
                 params![title, target_rub, to_iso(&started_at), opt_iso(ends_at)],

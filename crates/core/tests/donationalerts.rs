@@ -191,3 +191,42 @@ async fn test_push_saves_donation_and_converts() {
     assert_eq!(missing.len(), 1);
     assert_eq!(missing[0].external_id, "7");
 }
+
+#[tokio::test]
+async fn connect_fails_when_centrifugo_goes_silent() {
+    use axum::extract::ws::{Message, WebSocketUpgrade};
+    let api = MockServer::start().await;
+    Mock::given(path("/api/v1/user/oauth"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"data": {"id": 3, "socket_connection_token": "S"}})))
+        .mount(&api)
+        .await;
+    Mock::given(path("/api/v1/centrifuge/subscribe"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"channels": [{"channel": "$alerts:donation_3", "token": "CT"}]})))
+        .mount(&api)
+        .await;
+    // Answers connect and subscribe, then never says anything again (pings included): a dead link.
+    let ws_app = axum::Router::new().route(
+        "/connection/websocket",
+        axum::routing::any(|ws: WebSocketUpgrade| async move {
+            ws.on_upgrade(|mut sock| async move {
+                let _ = sock.recv().await;
+                let _ = sock.send(Message::Text(json!({"id": 1, "result": {"client": "c"}}).to_string().into())).await;
+                while let Some(Ok(_)) = sock.recv().await {}
+            })
+        }),
+    );
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    tokio::spawn(async move { axum::serve(listener, ws_app).await.unwrap() });
+
+    let store = Store::memory();
+    configure(&store, now() + 365.0 * 86400.0);
+    let (_, on_new) = counter();
+    let c = DACollector::new(store.clone(), rates(&store, true), on_new, reqwest::Client::new(), api.uri(),
+                             format!("ws://127.0.0.1:{port}/connection/websocket"))
+        .with_ping_interval(std::time::Duration::from_millis(100));
+    let mark_ok: donatehub_core::collectors::base::MarkOk = Arc::new(|| {});
+    let r = tokio::time::timeout(std::time::Duration::from_secs(5), c.connect(mark_ok)).await;
+    let err = r.expect("connect() never noticed the silent connection").unwrap_err();
+    assert!(err.to_string().contains("no messages"), "{err:#}");
+}

@@ -138,3 +138,23 @@ fn store_reads_python_written_rows() {
     assert_eq!(s.donations_missing_rub().unwrap().len(), 1);
     assert_eq!(s.get_setting("da").unwrap().unwrap()["expires_at"], json!(1795267310.5));
 }
+
+#[test]
+fn concurrent_create_goal_makes_one_goal() {
+    // A double-click on "create" sends two requests at once; axum handles them in parallel.
+    for _ in 0..50 {
+        let s = Store::memory();
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(16));
+        let handles: Vec<_> = (0..16)
+            .map(|i| {
+                let (s, b) = (s.clone(), barrier.clone());
+                std::thread::spawn(move || {
+                    b.wait();
+                    s.create_goal(&format!("G{i}"), 1.0, t(10, 0), None).unwrap().is_ok()
+                })
+            })
+            .collect();
+        let created = handles.into_iter().map(|h| h.join().unwrap()).filter(|ok| *ok).count();
+        assert_eq!(created, 1);
+    }
+}

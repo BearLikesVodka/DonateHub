@@ -80,3 +80,53 @@ async fn test_stream_handshake_and_invocations() {
     assert!(seen.negotiate.contains("access_token=tok"));
     assert!(seen.ws_query.contains("id=CT") && seen.ws_query.contains("access_token=tok"), "{}", seen.ws_query);
 }
+
+#[tokio::test]
+async fn aborting_run_closes_the_socket() {
+    let (closed_tx, closed_rx) = tokio::sync::oneshot::channel::<&'static str>();
+    let closed_tx = Arc::new(Mutex::new(Some(closed_tx)));
+    let app = axum::Router::new()
+        .route("/hub/negotiate", post(|| async { axum::Json(json!({"connectionToken": "CT"})) }))
+        .route(
+            "/hub",
+            any(move |ws: WebSocketUpgrade| async move {
+                let tx = closed_tx.clone();
+                ws.on_upgrade(move |mut sock| async move {
+                    let _ = sock.recv().await; // handshake
+                    let _ = sock.send(Message::Text(format!("{{}}{RS}").into())).await;
+                    // Pings may arrive; anything but a close/EOF keeps waiting.
+                    loop {
+                        match sock.recv().await {
+                            Some(Ok(Message::Close(_))) | None | Some(Err(_)) => break,
+                            Some(Ok(_)) => {}
+                        }
+                    }
+                    if let Some(tx) = tx.lock().unwrap().take() {
+                        let _ = tx.send("closed");
+                    }
+                })
+            }),
+        );
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+
+    let (opened_tx, opened_rx) = tokio::sync::oneshot::channel::<()>();
+    let task = tokio::spawn(async move {
+        let _ = run(
+            &format!("http://127.0.0.1:{port}/hub"),
+            "tok",
+            &reqwest::Client::new(),
+            async move || {
+                let _ = opened_tx.send(());
+                Ok(())
+            },
+            |_: &str, _: &[Value]| {},
+        )
+        .await;
+    });
+    opened_rx.await.unwrap();
+    task.abort(); // what Collectors::restart does to the old collector
+    let got = tokio::time::timeout(std::time::Duration::from_secs(3), closed_rx).await;
+    assert_eq!(got.ok().and_then(Result::ok), Some("closed"), "old hub connection stayed open");
+}

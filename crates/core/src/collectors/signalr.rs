@@ -76,7 +76,7 @@ pub async fn run(
     }
     .to_string();
     ws_url.set_scheme(&scheme).map_err(|_| anyhow!("bad hub url scheme"))?;
-    let (ws, _) = tokio_tungstenite::connect_async(ws_url.as_str()).await?;
+    let ws = super::connect_ws(ws_url.as_str(), super::WS_CONNECT_TIMEOUT).await?;
     let (sink, mut stream) = ws.split();
     let sink = Arc::new(Mutex::new(sink));
 
@@ -91,15 +91,15 @@ pub async fn run(
     }
 
     let pinger_sink = sink.clone();
-    let pinger = tokio::spawn(async move {
+    let _pinger = super::AbortOnDrop(tokio::spawn(async move {
         loop {
             tokio::time::sleep(PING_INTERVAL).await;
             if pinger_sink.lock().await.send(Message::Text(encode(&json!({"type": PING})).into())).await.is_err() {
                 return;
             }
         }
-    });
-    let result = async {
+    }));
+    async {
         on_open().await?;
         // Messages after the handshake may arrive in the same frame as the handshake response.
         let mut pending: Vec<Value> = handshake.into_iter().skip(1).collect();
@@ -121,7 +121,5 @@ pub async fn run(
             pending = text(next).map(|t| decode(&t)).unwrap_or_default();
         }
     }
-    .await;
-    pinger.abort();
-    result
+    .await
 }

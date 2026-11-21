@@ -4,3 +4,4 @@ pub mod store;
 pub mod assets;
 pub mod style;
 pub mod currency;
+pub mod hub;

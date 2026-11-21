@@ -10,6 +10,7 @@ const SAMPLE_COLLECTED = 5000;
 const state = {
   snapshot: null,      // last snapshot from /ws
   platforms: null,     // from /api/state
+  port: null,          // {current, saved} from /api/state
   savedStyle: null,    // style as stored on the server
   style: null,         // style being edited
   presets: [],
@@ -496,6 +497,7 @@ function renderConnections() {
       $(`#er-${name}`).textContent = p[name].error ?? "";
     }
     $("#da-login").disabled = !p.da.has_client;
+    renderPortNote();
     return;
   }
   view.dataset.ready = "1";
@@ -537,6 +539,16 @@ function renderConnections() {
     </div>
 
     <div class="card">
+      <h2>Порт сервера</h2>
+      <p class="hint">Меняйте, только если порт занят другой программой. После смены перезапустите приложение, обновите ссылку в OBS и Redirect URL в приложении DonationAlerts.</p>
+      <form class="inline" id="port-form">
+        <input type="number" id="port" min="1024" max="65535" step="1" value="${state.port.saved}" aria-label="Порт сервера">
+        <button class="btn">Сохранить порт</button>
+      </form>
+      <p class="hint" id="port-note" hidden></p>
+    </div>
+
+    <div class="card">
       <h2>Проверка виджета</h2>
       <p class="hint">Добавляет 100 ₽ к текущей цели, как будто пришёл донат. Чтобы убрать, вычтите сумму на вкладке «Текущая цель».</p>
       <button class="btn" id="test-donation">Тестовый донат 100 ₽</button>
@@ -569,6 +581,15 @@ function renderConnections() {
     }, "Сохранено. Теперь войдите через DonationAlerts");
   });
   $("#da-login").addEventListener("click", () => { location.href = "/auth/da/start"; });
+  $("#port-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const port = Number($("#port").value);
+    if (!Number.isInteger(port) || port < 1024 || port > 65535) return toast("Порт должен быть числом от 1024 до 65535", true);
+    run(async () => {
+      state.port = await api("PUT", "/api/settings/port", { port });
+      renderPortNote();
+    }, "Порт сохранён");
+  });
   $("#test-donation").addEventListener("click", () => {
     if (!state.snapshot?.goal) return toast("Сначала создайте цель", true);
     run(() => api("POST", "/api/debug/donation", { amount_rub: 100 }), "Тестовый донат добавлен");
@@ -576,9 +597,21 @@ function renderConnections() {
   renderConnections();
 }
 
+function renderPortNote() {
+  const note = $("#port-note");
+  if (!note || !state.port) return;
+  const pending = state.port.saved !== state.port.current;
+  note.hidden = !pending;
+  note.textContent = pending
+    ? `Сейчас приложение работает на порту ${state.port.current}. Порт ${state.port.saved} заработает после перезапуска: тогда ссылка для OBS станет http://127.0.0.1:${state.port.saved}/overlay.`
+    : "";
+}
+
 async function refreshPlatforms() {
   try {
-    state.platforms = (await api("GET", "/api/state")).platforms;
+    const st = await api("GET", "/api/state");
+    state.platforms = st.platforms;
+    state.port = st.port;
     renderSideStatus();
     renderConnections();
   } catch {
@@ -601,6 +634,7 @@ function connectWs() {
 async function init() {
   const [st, presets] = await Promise.all([api("GET", "/api/state"), api("GET", "/api/presets")]);
   state.platforms = st.platforms;
+  state.port = st.port;
   state.savedStyle = st.style;
   state.style = clone(st.style);
   state.presets = presets;

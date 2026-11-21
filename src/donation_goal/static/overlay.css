@@ -1,0 +1,105 @@
+html, body {
+  margin: 0;
+  background: transparent;
+  overflow: hidden;
+}
+
+#root {
+  padding: 1vw 1.5vw;
+  box-sizing: border-box;
+}
+
+.widget {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6vw;
+}
+
+.widget.backdrop {
+  background: var(--backdrop);
+  padding: 1.5vw;
+  border-radius: calc(var(--bar-r) + 0.5vw);
+}
+
+.title, .progress, .time {
+  text-align: var(--text-align);
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  paint-order: stroke fill;
+}
+
+.title {
+  font: var(--title-style) var(--title-weight) var(--title-size) var(--title-family);
+  color: var(--title-color);
+  -webkit-text-stroke: var(--title-stroke);
+  text-shadow: var(--title-shadow);
+  text-transform: uppercase;
+}
+
+.progress {
+  font: var(--progress-style) var(--progress-weight) var(--progress-size) var(--progress-family);
+  color: var(--progress-color);
+  -webkit-text-stroke: var(--progress-stroke);
+  text-shadow: var(--progress-shadow);
+}
+
+.time {
+  font: var(--time-style) var(--time-weight) var(--time-size) var(--time-family);
+  color: var(--time-color);
+  -webkit-text-stroke: var(--time-stroke);
+  text-shadow: var(--time-shadow);
+}
+
+.bar {
+  position: relative;
+  height: var(--bar-h);
+  border-radius: var(--bar-r);
+  border: var(--bar-border);
+  background: var(--bar-bg);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  background: var(--fill-bg);
+  border-radius: inherit;
+  transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.fill.pulse {
+  animation: pulse 1.2s ease-out;
+}
+
+@keyframes pulse {
+  0% { filter: brightness(1); }
+  25% { filter: brightness(1.6); }
+  100% { filter: brightness(1); }
+}
+
+.progress.inside {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: var(--align);
+  padding: 0 1.2vw;
+}
+
+.bounds {
+  display: flex;
+  justify-content: space-between;
+  font: 600 calc(var(--progress-size) * 0.6) var(--progress-family);
+  color: var(--progress-color);
+  text-shadow: var(--progress-shadow);
+  margin-top: -0.2vw;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fill { transition: none; }
+  .fill.pulse { animation: none; }
+}

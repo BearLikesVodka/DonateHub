@@ -114,3 +114,9 @@ def test_da_callback_rejects_bad_state(client):
     client.put("/api/platforms/da", json={"client_id": "7", "client_secret": "s"})
     r = client.get("/auth/da/callback?code=abc&state=forged", follow_redirects=False)
     assert r.status_code == 400
+
+
+def test_text_align_option():
+    assert DEFAULT_STYLE["elements"]["text_align"] == "left"
+    assert merge_style(DEFAULT_STYLE, {"elements": {"text_align": "center"}})["elements"]["text_align"] == "center"
+    assert merge_style(DEFAULT_STYLE, {"elements": {"text_align": "diagonal"}})["elements"]["text_align"] == "left"

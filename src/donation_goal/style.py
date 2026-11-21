@@ -21,6 +21,7 @@ DEFAULT_STYLE: dict[str, Any] = {
         "show_bounds": False,
         "backdrop": False,
         "backdrop_color": "#00ff00",
+        "text_align": "left",
     },
     "bar": {
         "height_vw": 7.0,
@@ -43,6 +44,7 @@ ENUMS: dict[str, set[str]] = {
     "progress_format": {"percent", "amount", "amount_percent", "amount_target", "amount_target_percent"},
     "time_pos": {"top", "bottom", "hidden"},
     "mode": {"color", "gradient"},
+    "text_align": {"left", "center"},
 }
 
 # Values end up inside CSS; allow colors and font names but nothing that can break out of a declaration.

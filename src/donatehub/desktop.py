@@ -20,7 +20,7 @@ from .store import Store
 
 log = logging.getLogger(__name__)
 
-APP_NAME = "Цель донатов"
+APP_NAME = "DonateHub"
 ICON_PATH = Path(__file__).parent / "static" / "icon.svg"
 LOCAL_HOSTS = {"127.0.0.1", "localhost"}
 # Pages that must open in the system browser even though they are served locally.
@@ -28,7 +28,7 @@ EXTERNAL_LOCAL_PATHS = {"/auth/da/start"}
 
 
 def instance_name() -> str:
-    return f"donation-goal-{os.getuid()}"
+    return f"donatehub-{os.getuid()}"
 
 
 def open_external(url: QUrl) -> None:
@@ -214,7 +214,7 @@ def ask_new_port(store: Store, port: int) -> None:
 def run(store: Store, port: int, hidden: bool = False) -> int:
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
-    app.setDesktopFileName("donation-goal")
+    app.setDesktopFileName("donatehub")
     app.setQuitOnLastWindowClosed(False)
     icon = QIcon(str(ICON_PATH))
     app.setWindowIcon(icon)

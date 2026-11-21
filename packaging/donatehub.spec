@@ -19,9 +19,9 @@ QT_EXCLUDES = [
 a = Analysis(
     [str(ROOT / "packaging" / "entry.py")],
     pathex=[str(SRC)],
-    datas=[(str(SRC / "donation_goal" / "static"), "donation_goal/static")],
+    datas=[(str(SRC / "donatehub" / "static"), "donatehub/static")],
     hiddenimports=[
-        "donation_goal.desktop",
+        "donatehub.desktop",
         "uvicorn.logging",
         "uvicorn.loops.auto",
         "uvicorn.loops.asyncio",
@@ -36,5 +36,5 @@ a = Analysis(
     noarchive=False,
 )
 pyz = PYZ(a.pure)
-exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="donation-goal", console=False, strip=False, upx=False)
-coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="donation-goal")
+exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="donatehub", console=False, strip=False, upx=False)
+coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="donatehub")

@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 
-from donation_goal.currency import RateProvider
+from donatehub.currency import RateProvider
 
 CBR = {"Valute": {"USD": {"Value": 90.0, "Nominal": 1}, "KZT": {"Value": 18.0, "Nominal": 100}}}
 

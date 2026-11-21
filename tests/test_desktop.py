@@ -9,7 +9,7 @@ from PySide6.QtCore import QUrl
 from PySide6.QtWebEngineCore import QWebEnginePage
 from PySide6.QtWidgets import QApplication
 
-from donation_goal import desktop
+from donatehub import desktop
 
 
 @pytest.fixture(scope="module")
@@ -39,7 +39,7 @@ def test_main_window_close_hides(qapp):
 
 
 def test_single_instance_forwards_show(qapp):
-    name = f"donation-goal-test-{uuid.uuid4().hex}"
+    name = f"donatehub-test-{uuid.uuid4().hex}"
     assert desktop.notify_running_instance(name) is False
     inst = desktop.SingleInstance(name)
     inst.listen()

@@ -3,7 +3,7 @@ import asyncio
 import httpx
 import pytest
 
-from donation_goal.collectors.base import CollectorStatus, run_forever
+from donatehub.collectors.base import CollectorStatus, run_forever
 
 
 async def test_run_forever_backoff_and_status():

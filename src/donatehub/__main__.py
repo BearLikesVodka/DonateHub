@@ -9,7 +9,7 @@ from .store import Store
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="donation-goal", description="Цель донатов для OBS")
+    parser = argparse.ArgumentParser(prog="donatehub", description="DonateHub: цель донатов для OBS")
     parser.add_argument("--headless", action="store_true", help="только сервер, без окна")
     parser.add_argument("--hidden", action="store_true", help="запуститься свёрнутым в трей")
     args = parser.parse_args(argv)

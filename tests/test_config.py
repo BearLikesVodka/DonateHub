@@ -1,28 +1,50 @@
 import socket
 
-from donation_goal.config import DEFAULT_PORT, data_dir, port_free, resolve_port
+from donatehub.config import DEFAULT_PORT, data_dir, port_free, resolve_port
 
 
 def test_data_dir_uses_xdg(tmp_path):
     d = data_dir({"XDG_DATA_HOME": str(tmp_path / "xdg"), "HOME": str(tmp_path / "home")})
-    assert d == tmp_path / "xdg" / "donation-goal"
+    assert d == tmp_path / "xdg" / "donatehub"
     assert d.is_dir()
 
 
 def test_data_dir_default_home(tmp_path):
     d = data_dir({"HOME": str(tmp_path)})
-    assert d == tmp_path / ".local" / "share" / "donation-goal"
+    assert d == tmp_path / ".local" / "share" / "donatehub"
     assert d.is_dir()
 
+
+
+def test_data_dir_migrates_old_donation_goal_dir(tmp_path):
+    old = tmp_path / "xdg" / "donation-goal"
+    old.mkdir(parents=True)
+    (old / "app.db").write_bytes(b"live data")
+    d = data_dir({"XDG_DATA_HOME": str(tmp_path / "xdg")})
+    assert d == tmp_path / "xdg" / "donatehub"
+    assert (d / "app.db").read_bytes() == b"live data"
+    assert not old.exists()
+
+
+def test_data_dir_keeps_existing_new_dir(tmp_path):
+    old = tmp_path / "xdg" / "donation-goal"
+    old.mkdir(parents=True)
+    (old / "app.db").write_bytes(b"old")
+    new = tmp_path / "xdg" / "donatehub"
+    new.mkdir()
+    (new / "app.db").write_bytes(b"new")
+    d = data_dir({"XDG_DATA_HOME": str(tmp_path / "xdg")})
+    assert (d / "app.db").read_bytes() == b"new"
+    assert (old / "app.db").read_bytes() == b"old"
 
 def test_resolve_port_priority(store):
     assert DEFAULT_PORT == 47321
     assert resolve_port(store, {}) == 47321
     store.set_setting("port", 48000)
     assert resolve_port(store, {}) == 48000
-    assert resolve_port(store, {"DONATION_GOAL_PORT": "49000"}) == 49000
-    assert resolve_port(store, {"DONATION_GOAL_PORT": "nope"}) == 48000
-    assert resolve_port(store, {"DONATION_GOAL_PORT": "80"}) == 48000
+    assert resolve_port(store, {"DONATEHUB_PORT": "49000"}) == 49000
+    assert resolve_port(store, {"DONATEHUB_PORT": "nope"}) == 48000
+    assert resolve_port(store, {"DONATEHUB_PORT": "80"}) == 48000
     store.set_setting("port", "garbage")
     assert resolve_port(store, {}) == 47321
 

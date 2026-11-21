@@ -1,5 +1,8 @@
 # Универсальная цель донатов (DonationAlerts + DonateX) — дизайн
 
+> Позже (2026-11-21) приложение переименовано в **DonateHub**: пакет `donatehub`, команда `donatehub`, данные в
+> `~/.local/share/donatehub/`, переменная `DONATEHUB_PORT`, сборка `DonateHub-x86_64.AppImage`. Ниже — исходный текст.
+
 ## Зачем
 
 Стример принимает донаты на двух платформах: DonationAlerts (DA) и DonateX. Встроенная цель

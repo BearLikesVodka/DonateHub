@@ -6,7 +6,7 @@ from urllib.parse import parse_qs, urlsplit
 import httpx
 
 from conftest import make_donation, t
-from donation_goal.collectors.donationalerts import (
+from donatehub.collectors.donationalerts import (
     DACollector,
     authorize_url,
     extract_push_donation,

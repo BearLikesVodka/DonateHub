@@ -4,7 +4,7 @@ import json
 import httpx
 from websockets.asyncio.server import serve
 
-from donation_goal.collectors.signalr import RS, decode, encode, signalr_stream
+from donatehub.collectors.signalr import RS, decode, encode, signalr_stream
 
 
 def test_encode_appends_record_separator():

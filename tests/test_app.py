@@ -3,9 +3,9 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from donation_goal.app import create_app
-from donation_goal.store import Store
-from donation_goal.style import DEFAULT_STYLE, load_presets, merge_style
+from donatehub.app import create_app
+from donatehub.store import Store
+from donatehub.style import DEFAULT_STYLE, load_presets, merge_style
 
 
 @pytest.fixture
@@ -176,7 +176,7 @@ def test_port_setting_validation(client):
 
 
 def test_da_callback_success_page(client, monkeypatch):
-    from donation_goal.collectors import donationalerts as da
+    from donatehub.collectors import donationalerts as da
 
     async def fake_exchange(http, cfg, code, redirect):
         assert code == "abc" and redirect.endswith(":47321/auth/da/callback")

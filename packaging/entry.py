@@ -1,3 +1,3 @@
-from donation_goal.__main__ import main
+from donatehub.__main__ import main
 
 raise SystemExit(main())

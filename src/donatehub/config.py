@@ -6,13 +6,17 @@ from pathlib import Path
 from .store import Store
 
 DEFAULT_PORT = 47321
-APP_DIR = "donation-goal"
-PORT_ENV = "DONATION_GOAL_PORT"
+APP_DIR = "donatehub"
+OLD_APP_DIR = "donation-goal"
+PORT_ENV = "DONATEHUB_PORT"
 
 
 def data_dir(env: Mapping[str, str] = os.environ) -> Path:
     base = env.get("XDG_DATA_HOME") or str(Path(env.get("HOME") or Path.home()) / ".local" / "share")
     path = Path(base) / APP_DIR
+    old = Path(base) / OLD_APP_DIR
+    if not path.exists() and old.is_dir():
+        old.rename(path)  # keep goals, donations and tokens from before the DonateHub rename
     path.mkdir(parents=True, exist_ok=True)
     return path
 

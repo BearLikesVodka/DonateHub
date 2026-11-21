@@ -2,8 +2,8 @@ from datetime import UTC, datetime
 
 import pytest
 
-from donation_goal.models import Donation
-from donation_goal.store import Store
+from donatehub.models import Donation
+from donatehub.store import Store
 
 
 def t(h: int, m: int = 0) -> datetime:

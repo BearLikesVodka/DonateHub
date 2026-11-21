@@ -2,10 +2,10 @@ import socket
 
 import httpx
 
-from donation_goal.app import create_app
-from donation_goal.config import port_free
-from donation_goal.server import ServerThread
-from donation_goal.store import Store
+from donatehub.app import create_app
+from donatehub.config import port_free
+from donatehub.server import ServerThread
+from donatehub.store import Store
 
 
 def free_port() -> int:

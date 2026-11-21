@@ -1,7 +1,7 @@
 [project]
-name = "donation-goal"
+name = "donatehub"
 version = "0.1.0"
-description = "OBS donation goal overlay for DonationAlerts + DonateX"
+description = "DonateHub: OBS donation goal overlay for DonationAlerts + DonateX"
 requires-python = ">=3.15"
 dependencies = [
     "fastapi",
@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.scripts]
-donation-goal = "donation_goal.__main__:main"
+donatehub = "donatehub.__main__:main"
 
 [dependency-groups]
 dev = ["pytest", "pytest-asyncio"]
@@ -24,7 +24,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/donation_goal"]
+packages = ["src/donatehub"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

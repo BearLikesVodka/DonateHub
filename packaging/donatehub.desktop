@@ -1,10 +1,10 @@
 [Desktop Entry]
 Type=Application
-Name=Цель донатов
-Name[en]=Donation Goal
+Name=DonateHub
 Comment=Цель донатов для OBS: DonationAlerts + DonateX
-Exec=donation-goal
-Icon=donation-goal
+Comment[en]=OBS donation goal: DonationAlerts + DonateX
+Exec=donatehub
+Icon=donatehub
 Categories=AudioVideo;Video;Network;
 Terminal=false
-StartupWMClass=donation-goal
+StartupWMClass=donatehub

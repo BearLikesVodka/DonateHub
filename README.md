@@ -24,10 +24,11 @@
 ### Сборка AppImage
 
 ```sh
-./packaging/build-appimage.sh   # результат: dist/DonateHub-x86_64.AppImage
+./packaging/build-appimage.sh   # результат: dist/DonateHub-x86_64.AppImage (~115 МБ)
 ```
 
-Нужны uv и интернет при первой сборке (скачивается `appimagetool`).
+Нужны Rust (stable), системные WebKitGTK 4.1 и GTK3, интернет при первой сборке (ставится `tauri-cli`,
+Tauri скачивает `linuxdeploy`).
 
 ## Подключение платформ
 
@@ -59,10 +60,16 @@
 
 ## Разработка
 
+Rust-workspace: `crates/core` — сервер (axum), база, коллекторы, без GUI; `src-tauri` — окно (Tauri), трей (ksni).
+Фронтенд — чистые HTML/CSS/JS в `static/`, встраивается в бинарник.
+
 ```sh
-uv sync
-uv run donatehub            # окно + трей
-uv run donatehub --headless # только сервер
-uv run pytest
+cargo run -p donatehub                  # окно + трей
+cargo run -p donatehub -- --headless    # только сервер
+cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
 node --test tests/js
 ```
+
+Первая версия была на Python (FastAPI + PySide6). Её код лежит в git под тегом `python-v0.1.0`;
+база данных у обеих версий общая, так что откатиться можно просто запуском старого AppImage.

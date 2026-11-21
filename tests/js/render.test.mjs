@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { formatAmount, formatProgress, fillPercent, formatRemaining } from "../../src/donatehub/static/render.js";
+import { formatAmount, formatProgress, fillPercent, formatRemaining } from "../../static/render.js";
 
 test("formatAmount groups thousands with spaces and drops fraction", () => {
   assert.equal(formatAmount(5000), "5 000");

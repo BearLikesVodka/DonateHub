@@ -4,7 +4,7 @@ use rust_embed::Embed;
 
 /// The frontend, compiled into the binary (same files the Python version serves).
 #[derive(Embed)]
-#[folder = "../../src/donatehub/static/"]
+#[folder = "../../static/"]
 pub struct Static;
 
 pub fn get(path: &str) -> Option<(Cow<'static, [u8]>, String)> {

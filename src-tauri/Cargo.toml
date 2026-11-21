@@ -23,4 +23,4 @@ tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 webkit2gtk = "2.0.2"
 
 [build-dependencies]
-tauri-build = "2.7.6"
+tauri-build = { version = "2.7.6", features = [] }

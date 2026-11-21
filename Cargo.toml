@@ -6,3 +6,8 @@ members = ["crates/core", "src-tauri"]
 edition = "2024"
 version = "0.2.0"
 license = "MIT"
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1

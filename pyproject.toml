@@ -10,6 +10,9 @@ dependencies = [
     "websockets",
 ]
 
+[project.scripts]
+donation-goal = "donation_goal.__main__:main"
+
 [dependency-groups]
 dev = ["pytest", "pytest-asyncio"]
 

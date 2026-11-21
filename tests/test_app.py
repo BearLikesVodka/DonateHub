@@ -11,13 +11,13 @@ from donation_goal.style import DEFAULT_STYLE, load_presets, merge_style
 @pytest.fixture
 def client():
     app = create_app(Store(":memory:"), start_collectors=False)
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1:8000") as c:
         yield c
 
 
 def test_ws_receives_update_after_debug_donation(client):
     assert client.post("/api/goal", json={"title": "Микрофон", "target_rub": 10000}).status_code == 200
-    with client.websocket_connect("/ws") as ws:
+    with client.websocket_connect("ws://127.0.0.1:8000/ws") as ws:
         first = ws.receive_json()
         assert first["collected_rub"] == 0 and first["goal"]["title"] == "Микрофон"
         assert client.post("/api/debug/donation", json={"amount_rub": 500}).status_code == 200
@@ -62,7 +62,7 @@ def test_tokens_not_exposed(client):
     assert state["platforms"]["dx"]["configured"] is True
     assert state["platforms"]["da"]["configured"] is False
     assert state["platforms"]["da"]["has_client"] is True
-    with client.websocket_connect("/ws") as ws:
+    with client.websocket_connect("ws://127.0.0.1:8000/ws") as ws:
         assert "SECRET" not in json.dumps(ws.receive_json())
 
 
@@ -120,3 +120,37 @@ def test_text_align_option():
     assert DEFAULT_STYLE["elements"]["text_align"] == "left"
     assert merge_style(DEFAULT_STYLE, {"elements": {"text_align": "center"}})["elements"]["text_align"] == "center"
     assert merge_style(DEFAULT_STYLE, {"elements": {"text_align": "diagonal"}})["elements"]["text_align"] == "left"
+
+
+def test_cross_site_post_rejected(client):
+    client.post("/api/goal", json={"title": "A", "target_rub": 1000})
+    r = client.post("/api/goal/close", headers={"Origin": "https://evil.example"})
+    assert r.status_code == 403
+    assert client.get("/api/state").json()["goal"] is not None
+    assert client.post("/api/goal/close", headers={"Origin": "http://127.0.0.1:8000"}).status_code == 200
+
+
+def test_foreign_host_rejected(client):
+    assert client.get("/api/state", headers={"Host": "rebind.evil.example"}).status_code == 400
+    assert client.get("/api/state", headers={"Host": "localhost:8000"}).status_code == 200
+    assert client.get("/api/state", headers={"Host": "127.0.0.1:8000"}).status_code == 200
+
+
+class FakeCollector:
+    def __init__(self):
+        self.calls = []
+
+    async def catch_up(self, since):
+        self.calls.append(since)
+        return 0
+
+
+def test_backdated_goal_triggers_backfill():
+    app = create_app(Store(":memory:"), start_collectors=False)
+    fake = FakeCollector()
+    app.state.collectors.instances["dx"] = fake
+    with TestClient(app, base_url="http://127.0.0.1:8000") as c:
+        c.post("/api/goal", json={"title": "A", "target_rub": 1000, "started_at": "2026-11-01T00:00:00Z"})
+        c.patch("/api/goal", json={"started_at": "2026-10-01T00:00:00Z"})
+        c.patch("/api/goal", json={"title": "B"})
+    assert [d.isoformat() for d in fake.calls] == ["2026-11-01T00:00:00+00:00", "2026-10-01T00:00:00+00:00"]

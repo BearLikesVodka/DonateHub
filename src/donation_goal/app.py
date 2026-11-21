@@ -6,15 +6,17 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
+from urllib.parse import urlsplit
 
 import httpx
 from fastapi import Body, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import AwareDatetime, BaseModel, Field
 
 from .collectors import donationalerts as da
-from .collectors.base import CollectorStatus, run_forever
+from .collectors.base import CollectorStatus, describe_error, run_forever
 from .collectors.donatex import DonateXCollector
 from .currency import RateProvider
 from .hub import Hub
@@ -24,6 +26,8 @@ from .style import load_presets, merge_style
 
 log = logging.getLogger(__name__)
 STATIC = Path(__file__).parent / "static"
+LOCAL_HOSTS = ["127.0.0.1", "localhost"]
+SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
 
 class GoalCreate(BaseModel):
@@ -63,6 +67,8 @@ class Collectors:
         self.rates: RateProvider | None = None
         self.status = {"da": CollectorStatus(), "dx": CollectorStatus()}
         self.tasks: dict[str, asyncio.Task] = {}
+        self.instances: dict[str, object] = {}
+        self._backfills: set[asyncio.Task] = set()
         self.enabled = False
 
     async def start(self) -> None:
@@ -87,16 +93,31 @@ class Collectors:
     def restart(self, name: str) -> None:
         if old := self.tasks.pop(name, None):
             old.cancel()
+        self.instances.pop(name, None)
         status = self.status[name]
         if not self.enabled or not self.configured(name):
             status.state, status.error = "off", None
             return
         if name == "dx":
             token = self.store.get_setting("dx")["token"]
-            connect = DonateXCollector(self.store, token, self.hub.notify, self.client).connect
+            collector = DonateXCollector(self.store, token, self.hub.notify, self.client)
         else:
-            connect = da.DACollector(self.store, self.rates, self.hub.notify, self.client).connect
-        self.tasks[name] = asyncio.create_task(run_forever(name, connect, status, lambda: None))
+            collector = da.DACollector(self.store, self.rates, self.hub.notify, self.client)
+        self.instances[name] = collector
+        self.tasks[name] = asyncio.create_task(run_forever(name, collector.connect, status, lambda: None))
+
+    def backfill(self, since: datetime) -> None:
+        """Fetch donations back to `since` (e.g. a goal start moved into the past) without blocking the request."""
+        async def one(name: str, collector) -> None:
+            try:
+                await collector.catch_up(since)
+            except Exception as e:
+                log.warning("%s backfill failed: %s", name, describe_error(e))
+
+        for name, collector in list(self.instances.items()):
+            task = asyncio.create_task(one(name, collector))
+            self._backfills.add(task)
+            task.add_done_callback(self._backfills.discard)
 
     def platforms(self) -> dict:
         da_cfg = self.store.get_setting("da") or {}
@@ -122,6 +143,18 @@ def create_app(store: Store, start_collectors: bool = True) -> FastAPI:
         await collectors.stop()
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None)
+    app.state.collectors = collectors
+
+    @app.middleware("http")
+    async def same_origin_writes(request, call_next):
+        # Any website open in the streamer's browser can POST to localhost; only our own pages may change state.
+        origin = request.headers.get("origin")
+        if request.method not in SAFE_METHODS and origin and urlsplit(origin).hostname not in LOCAL_HOSTS:
+            return JSONResponse({"detail": "запрос с чужого сайта отклонён"}, status_code=403)
+        return await call_next(request)
+
+    # Blocks DNS rebinding: a foreign domain resolving to 127.0.0.1 still sends its own Host header.
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=LOCAL_HOSTS)
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
     def require_goal():
@@ -169,9 +202,10 @@ def create_app(store: Store, start_collectors: bool = True) -> FastAPI:
     @app.post("/api/goal")
     async def create_goal(body: GoalCreate):
         try:
-            store.create_goal(body.title, body.target_rub, body.started_at or datetime.now(UTC), body.ends_at)
+            goal = store.create_goal(body.title, body.target_rub, body.started_at or datetime.now(UTC), body.ends_at)
         except ValueError:
             raise HTTPException(409, "уже есть активная цель")
+        collectors.backfill(goal.started_at)
         await hub.broadcast()
         return hub.snapshot()
 
@@ -182,6 +216,8 @@ def create_app(store: Store, start_collectors: bool = True) -> FastAPI:
         if any(v is None for k, v in fields.items() if k != "ends_at"):
             raise HTTPException(422, "поле не может быть пустым")
         store.update_goal(goal.id, **fields)
+        if "started_at" in fields:
+            collectors.backfill(fields["started_at"])
         await hub.broadcast()
         return hub.snapshot()
 

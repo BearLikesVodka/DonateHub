@@ -1,4 +1,5 @@
 pub mod base;
+pub mod donationalerts;
 pub mod donatex;
 pub mod signalr;
 

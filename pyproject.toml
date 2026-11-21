@@ -17,6 +17,7 @@ donation-goal = "donation_goal.__main__:main"
 
 [dependency-groups]
 dev = ["pytest", "pytest-asyncio"]
+build = ["pyinstaller>=6.22"]
 
 [build-system]
 requires = ["hatchling"]

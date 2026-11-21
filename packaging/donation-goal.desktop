@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Цель донатов
+Name[en]=Donation Goal
+Comment=Цель донатов для OBS: DonationAlerts + DonateX
+Exec=donation-goal
+Icon=donation-goal
+Categories=AudioVideo;Video;Network;
+Terminal=false
+StartupWMClass=donation-goal

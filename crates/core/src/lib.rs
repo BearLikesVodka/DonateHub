@@ -7,3 +7,4 @@ pub mod currency;
 pub mod hub;
 pub mod collectors;
 pub mod app;
+pub mod server;

@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import secrets
-import uuid
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -21,7 +20,7 @@ from .collectors.donatex import DonateXCollector
 from .config import DEFAULT_PORT, resolve_port
 from .currency import RateProvider
 from .hub import Hub
-from .models import Donation, to_iso
+from .models import to_iso
 from .store import Store
 from .style import load_presets, merge_style
 
@@ -47,8 +46,7 @@ class GoalPatch(BaseModel):
 
 
 class DebugDonation(BaseModel):
-    amount_rub: float
-    username: str = "Тест"
+    amount_rub: float = Field(gt=0, le=1_000_000)
 
 
 class PortSettings(BaseModel):
@@ -156,6 +154,7 @@ def create_app(store: Store, start_collectors: bool = True, port: int = DEFAULT_
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None)
     app.state.collectors = collectors
+    app.state.hub = hub
 
     @app.middleware("http")
     async def same_origin_writes(request, call_next):
@@ -256,11 +255,7 @@ def create_app(store: Store, start_collectors: bool = True, port: int = DEFAULT_
 
     @app.post("/api/debug/donation")
     async def debug_donation(body: DebugDonation):
-        store.add_donation(Donation(
-            platform="manual", external_id=str(uuid.uuid4()), username=body.username,
-            amount=body.amount_rub, currency="RUB", amount_rub=body.amount_rub,
-            created_at=datetime.now(UTC), is_test=False, raw={},
-        ))
+        hub.add_test_amount(body.amount_rub)
         await hub.broadcast()
         return hub.snapshot()
 

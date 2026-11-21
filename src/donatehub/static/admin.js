@@ -550,7 +550,7 @@ function renderConnections() {
 
     <div class="card">
       <h2>Проверка виджета</h2>
-      <p class="hint">Добавляет 100 ₽ к текущей цели, как будто пришёл донат. Чтобы убрать, вычтите сумму на вкладке «Текущая цель».</p>
+      <p class="hint">Показывает на полосе +100 ₽ на 15 секунд, даже если цель ещё не началась. В сумму цели и историю не записывается.</p>
       <button class="btn" id="test-donation">Тестовый донат 100 ₽</button>
     </div>`;
 
@@ -592,7 +592,7 @@ function renderConnections() {
   });
   $("#test-donation").addEventListener("click", () => {
     if (!state.snapshot?.goal) return toast("Сначала создайте цель", true);
-    run(() => api("POST", "/api/debug/donation", { amount_rub: 100 }), "Тестовый донат добавлен");
+    run(() => api("POST", "/api/debug/donation", { amount_rub: 100 }), "Тестовые 100 ₽ на полосе, через 15 секунд исчезнут");
   });
   renderConnections();
 }

@@ -24,6 +24,19 @@ def test_ws_receives_update_after_debug_donation(client):
         assert ws.receive_json()["collected_rub"] == 500
 
 
+def test_test_donation_ignores_goal_start_and_expires(client):
+    client.app.state.hub.test_ttl = 0.2
+    future = "2099-01-01T00:00:00+00:00"
+    assert client.post("/api/goal", json={"title": "Микрофон", "target_rub": 10000, "started_at": future}).status_code == 200
+    with client.websocket_connect("ws://127.0.0.1:8000/ws") as ws:
+        assert ws.receive_json()["collected_rub"] == 0
+        r = client.post("/api/debug/donation", json={"amount_rub": 100})
+        assert r.status_code == 200 and r.json()["collected_rub"] == 100
+        assert ws.receive_json()["collected_rub"] == 100
+        assert ws.receive_json()["collected_rub"] == 0  # pushed again once the test amount expires
+    assert client.app.state.collectors.store.collected(client.app.state.collectors.store.active_goal()) == 0
+
+
 def test_style_merge_rejects_unknown_and_bad_types(client):
     r = client.put("/api/style", json={"bar": {"height_vw": "x", "nope": 1, "radius_vw": 2}})
     assert r.status_code == 200

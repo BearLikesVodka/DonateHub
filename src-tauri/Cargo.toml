@@ -7,11 +7,8 @@ license.workspace = true
 
 [dependencies]
 anyhow = "1.0.104"
-arboard = { version = "3.7.0", features = ["wayland-data-control"] }
 clap = { version = "4.6.9", features = ["derive"] }
 donatehub-core = { path = "../crates/core" }
-ksni = "0.3.7"
-notify-rust = "4.19.0"
 serde_json = "1.0.154"
 tauri = { version = "2.12.7", features = ["image-png"] }
 tauri-plugin-dialog = "2.8.4"
@@ -20,7 +17,18 @@ tauri-plugin-single-instance = "2.5.5"
 tokio = { version = "1.54.1", features = ["full"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+arboard = { version = "3.7.0", features = ["wayland-data-control"] }
+ksni = "0.3.7"
+notify-rust = "4.19.0"
 webkit2gtk = "2.0.2"
+
+[target.'cfg(windows)'.dependencies]
+arboard = "3.7.0"
+tauri = { version = "2.12.7", features = ["image-png", "tray-icon"] }
+tauri-plugin-notification = "2.8.1"
+windows-sys = { version = "0.61.2", features = ["Win32_System_Console"] }
 
 [build-dependencies]
 tauri-build = { version = "2.7.6", features = [] }

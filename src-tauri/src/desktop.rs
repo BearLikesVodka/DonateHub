@@ -131,6 +131,8 @@ fn create_window(app: &AppHandle, port: u16, visible: bool) -> tauri::Result<()>
         })
         .build()?;
     // Same as the Qt version's JavascriptCanAccessClipboard: the "Копировать" buttons write to the clipboard.
+    // WebView2 on Windows already allows clipboard writes on http://127.0.0.1 (a secure context).
+    #[cfg(target_os = "linux")]
     window.with_webview(|wv| {
         use webkit2gtk::{SettingsExt, WebViewExt};
         if let Some(settings) = wv.inner().settings() {
@@ -156,6 +158,7 @@ fn on_close_requested(window: &tauri::Window, api: &tauri::CloseRequestApi) {
     }
 }
 
+#[cfg(unix)]
 fn quit_on_signals(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
         use tokio::signal::unix::{SignalKind, signal};
@@ -171,11 +174,14 @@ fn quit_on_signals(app: AppHandle) {
 }
 
 pub fn run(store: Store, port: u16, hidden: bool) -> anyhow::Result<i32> {
-    let app = tauri::Builder::default()
+    let builder = tauri::Builder::default()
         // Must be first: a second launch only shows the running window, then exits with 0.
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| show_window(app)))
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_dialog::init());
+    #[cfg(windows)]
+    let builder = builder.plugin(tauri_plugin_notification::init());
+    let app = builder
         .manage(Shell::default())
         .setup(move |app| {
             let handle = app.handle().clone();
@@ -199,6 +205,7 @@ pub fn run(store: Store, port: u16, hidden: bool) -> anyhow::Result<i32> {
             let tray = crate::tray::spawn(&handle, port);
             app.state::<Shell>().tray_available.store(tray, Ordering::SeqCst);
             create_window(&handle, port, !hidden || !tray)?;
+            #[cfg(unix)]
             quit_on_signals(handle);
             Ok(())
         })

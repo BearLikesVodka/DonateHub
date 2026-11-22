@@ -1,4 +1,9 @@
+// Release builds on Windows are GUI apps (no console window); `--headless` attaches to the caller's console.
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
+
+mod clipboard;
 mod desktop;
+mod notify;
 mod tray;
 
 use clap::Parser;
@@ -31,6 +36,8 @@ fn main() -> anyhow::Result<()> {
     let store = Store::open(&data_dir_from_env()?.join("app.db"))?;
     let port = resolve_port(&store, &|k| std::env::var(k).ok());
     if cli.headless {
+        #[cfg(windows)]
+        attach_parent_console();
         return run_headless(store, port);
     }
     std::process::exit(desktop::run(store, port, cli.hidden)?)
@@ -41,12 +48,27 @@ fn run_headless(store: Store, port: u16) -> anyhow::Result<()> {
         let (router, state) = build(store, true, port);
         let server = Server::start(router, state.collectors.clone(), port).await?;
         println!("Настройки:  http://127.0.0.1:{port}/\nОверлей:    http://127.0.0.1:{port}/overlay");
-        let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
-        tokio::select! {
-            _ = tokio::signal::ctrl_c() => {}
-            _ = term.recv() => {}
+        #[cfg(unix)]
+        {
+            let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
+            tokio::select! {
+                _ = tokio::signal::ctrl_c() => {}
+                _ = term.recv() => {}
+            }
         }
+        #[cfg(not(unix))]
+        tokio::signal::ctrl_c().await?;
         server.stop().await;
         Ok(())
     })
+}
+
+/// A `windows_subsystem = "windows"` binary has no console; reuse the one of cmd/PowerShell that started it.
+#[cfg(windows)]
+fn attach_parent_console() {
+    use windows_sys::Win32::System::Console::{ATTACH_PARENT_PROCESS, AttachConsole};
+    // SAFETY: plain Win32 call without pointers; failure (no parent console) only means output goes nowhere.
+    unsafe {
+        AttachConsole(ATTACH_PARENT_PROCESS);
+    }
 }

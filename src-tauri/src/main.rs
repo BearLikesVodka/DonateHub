@@ -5,6 +5,7 @@ mod clipboard;
 mod desktop;
 mod notify;
 mod tray;
+mod updates;
 
 use clap::Parser;
 use donatehub_core::app::build;

@@ -59,18 +59,24 @@ pub fn toggle_window(app: &AppHandle) {
 
 /// Really quit: stop the server (collectors, overlay sockets), then exit the event loop.
 pub fn request_quit(app: &AppHandle) {
-    let shell = app.state::<Shell>();
-    if shell.quitting.swap(true, Ordering::SeqCst) {
+    if app.state::<Shell>().quitting.swap(true, Ordering::SeqCst) {
         return;
     }
-    let server = shell.server.lock().unwrap().take();
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        if let Some(server) = server {
-            server.stop().await;
-        }
+        stop_server(&app).await;
         app.exit(0);
     });
+}
+
+/// Stop the server for good (quit or update): collectors stop, the port is freed, the window may close.
+pub async fn stop_server(app: &AppHandle) {
+    let shell = app.state::<Shell>();
+    shell.quitting.store(true, Ordering::SeqCst);
+    let server = shell.server.lock().unwrap().take();
+    if let Some(server) = server {
+        server.stop().await;
+    }
 }
 
 fn suggest_port(port: u16) -> u16 {
@@ -187,7 +193,8 @@ pub fn run(store: Store, port: u16, hidden: bool) -> anyhow::Result<i32> {
         // Must be first: a second launch only shows the running window, then exits with 0.
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| show_window(app)))
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init());
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build());
     #[cfg(windows)]
     let builder = builder.plugin(tauri_plugin_notification::init());
     let app = builder
@@ -198,8 +205,12 @@ pub fn run(store: Store, port: u16, hidden: bool) -> anyhow::Result<i32> {
                 ask_new_port(&handle, store, port);
                 return Ok(());
             }
+            let updater = crate::updates::DesktopUpdater::new(&handle);
             let started = tauri::async_runtime::block_on(async {
                 let (router, state) = build(store, true, port);
+                if let Some(u) = &updater {
+                    state.set_updater(std::sync::Arc::new(u.clone()));
+                }
                 Server::start(router, state.collectors.clone(), port).await
             });
             let server = match started {
@@ -211,6 +222,9 @@ pub fn run(store: Store, port: u16, hidden: bool) -> anyhow::Result<i32> {
                 }
             };
             *app.state::<Shell>().server.lock().unwrap() = Some(server);
+            if let Some(u) = &updater {
+                u.spawn_checks();
+            }
             let tray = crate::tray::spawn(&handle, port);
             app.state::<Shell>().tray_available.store(tray, Ordering::SeqCst);
             create_window(&handle, port, !hidden || !tray)?;

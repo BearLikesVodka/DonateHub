@@ -151,3 +151,12 @@ export function updateTime(root, now = new Date()) {
   t.textContent = formatRemaining(ends, now);
   t.hidden = !ends;
 }
+
+/** What the update banner on the settings page shows for `/api/update`, or null to hide it. */
+export function updateBanner(info) {
+  if (!info?.supported || !info.available) return null;
+  if (info.installing) {
+    return { text: `Устанавливается версия ${info.available}, программа перезапустится…`, button: null, busy: true };
+  }
+  return { text: `Доступна версия ${info.available}`, button: "Обновить", busy: false };
+}

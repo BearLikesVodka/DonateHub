@@ -1,4 +1,4 @@
-import { GOOGLE_FONTS, formatAmount, formatProgress, fillPercent } from "./render.js";
+import { GOOGLE_FONTS, formatAmount, formatProgress, fillPercent, updateBanner } from "./render.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -631,6 +631,36 @@ function connectWs() {
   ws.onclose = () => setTimeout(connectWs, 2000);
 }
 
+// ---------- updates ----------
+
+async function refreshUpdate() {
+  const banner = updateBanner(await api("GET", "/api/update").catch(() => null));
+  const el = $("#update-banner");
+  el.hidden = !banner;
+  if (!banner) return;
+  $("#update-text").textContent = banner.text;
+  el.classList.toggle("busy", banner.busy);
+  const btn = $("#update-btn");
+  btn.hidden = !banner.button;
+  btn.textContent = banner.button ?? "";
+}
+
+function initUpdate() {
+  $("#update-btn").addEventListener("click", () =>
+    run(async () => {
+      $("#update-btn").disabled = true;
+      try {
+        await api("POST", "/api/update/install");
+      } finally {
+        $("#update-btn").disabled = false;
+        await refreshUpdate();
+      }
+    }),
+  );
+  refreshUpdate();
+  setInterval(refreshUpdate, 10 * 60 * 1000);
+}
+
 async function init() {
   const [st, presets] = await Promise.all([api("GET", "/api/state"), api("GET", "/api/presets")]);
   state.platforms = st.platforms;
@@ -648,6 +678,7 @@ async function init() {
   showTab();
   connectWs();
   setInterval(refreshPlatforms, 5000);
+  initUpdate();
 }
 
 init().catch((e) => toast(`Не удалось загрузить настройки: ${e.message}`, true));

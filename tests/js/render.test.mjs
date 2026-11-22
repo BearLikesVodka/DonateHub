@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { formatAmount, formatProgress, fillPercent, formatRemaining } from "../../static/render.js";
+import { formatAmount, formatProgress, fillPercent, formatRemaining, updateBanner } from "../../static/render.js";
 
 test("formatAmount groups thousands with spaces and drops fraction", () => {
   assert.equal(formatAmount(5000), "5 000");
@@ -35,4 +35,19 @@ test("formatRemaining", () => {
   assert.equal(formatRemaining(new Date("2026-11-21T04:12:33Z"), now), "Осталось 04:12:33");
   assert.equal(formatRemaining(new Date("2026-11-20T00:00:00Z"), now), "Сбор завершён");
   assert.equal(formatRemaining(null, now), "");
+});
+
+test("updateBanner covers states", () => {
+  assert.equal(updateBanner({ supported: false }), null);
+  assert.equal(updateBanner({ supported: true, current: "0.3.0", available: null, installing: false }), null);
+  assert.deepEqual(updateBanner({ supported: true, current: "0.3.0", available: "0.3.1", installing: false }), {
+    text: "Доступна версия 0.3.1",
+    button: "Обновить",
+    busy: false,
+  });
+  assert.deepEqual(updateBanner({ supported: true, current: "0.3.0", available: "0.3.1", installing: true }), {
+    text: "Устанавливается версия 0.3.1, программа перезапустится…",
+    button: null,
+    busy: true,
+  });
 });

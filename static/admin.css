@@ -83,6 +83,21 @@ nav a[aria-current="page"] { color: var(--text); background: var(--panel); box-s
 
 main { padding: 28px 36px 80px; max-width: 1200px; width: 100%; }
 
+.update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 10px 10px 10px 16px;
+  border-radius: var(--r);
+  background: var(--panel);
+  box-shadow: inset 3px 0 0 var(--accent);
+  font-weight: 500;
+}
+.update-banner[hidden] { display: none; }
+.update-banner.busy { color: var(--muted); }
+
 a { color: var(--accent); }
 
 h1 { font-size: 26px; font-weight: 600; margin: 0 0 22px; }

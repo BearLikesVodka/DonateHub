@@ -130,15 +130,24 @@ fn create_window(app: &AppHandle, port: u16, visible: bool) -> tauri::Result<()>
             NewWindowResponse::Deny
         })
         .build()?;
-    // Same as the Qt version's JavascriptCanAccessClipboard: the "Копировать" buttons write to the clipboard.
-    // WebView2 on Windows already allows clipboard writes on http://127.0.0.1 (a secure context).
-    #[cfg(target_os = "linux")]
+    allow_clipboard_writes(&window)?;
+    Ok(())
+}
+
+/// Same as the Qt version's JavascriptCanAccessClipboard: the "Копировать" buttons write to the clipboard.
+#[cfg(target_os = "linux")]
+fn allow_clipboard_writes(window: &tauri::WebviewWindow) -> tauri::Result<()> {
     window.with_webview(|wv| {
         use webkit2gtk::{SettingsExt, WebViewExt};
         if let Some(settings) = wv.inner().settings() {
             settings.set_javascript_can_access_clipboard(true);
         }
-    })?;
+    })
+}
+
+/// WebView2 already allows clipboard writes on http://127.0.0.1 (a secure context).
+#[cfg(not(target_os = "linux"))]
+fn allow_clipboard_writes(_window: &tauri::WebviewWindow) -> tauri::Result<()> {
     Ok(())
 }
 

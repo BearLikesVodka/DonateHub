@@ -1,6 +1,6 @@
 //! HTTP API, pages and the overlay WebSocket — the same routes and JSON as the Python (FastAPI) version.
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use axum::body::Bytes;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
@@ -22,6 +22,7 @@ use crate::hub::Hub;
 use crate::models::{from_iso, to_iso};
 use crate::store::{GoalPatch, Store};
 use crate::style::{load_presets, merge_style};
+use crate::updates::Updater;
 
 const LOCAL_HOSTS: [&str; 2] = ["127.0.0.1", "localhost"];
 
@@ -37,6 +38,14 @@ pub struct AppState {
     pub collectors: Collectors,
     pub port: u16,
     oauth_states: Arc<Mutex<HashSet<String>>>,
+    updater: Arc<OnceLock<Arc<dyn Updater>>>,
+}
+
+impl AppState {
+    /// Registered by the desktop shell; without it (headless, tests) updates are reported as unsupported.
+    pub fn set_updater(&self, updater: Arc<dyn Updater>) {
+        let _ = self.updater.set(updater);
+    }
 }
 
 /// Router + shared state. Must run inside a tokio runtime when `start_collectors` is true.
@@ -50,7 +59,7 @@ pub fn build_with(store: Store, start_collectors: bool, port: u16, endpoints: En
     if start_collectors {
         collectors.start();
     }
-    let state = AppState { store, hub, collectors, port, oauth_states: Arc::default() };
+    let state = AppState { store, hub, collectors, port, oauth_states: Arc::default(), updater: Arc::default() };
     (router(state.clone()), state)
 }
 
@@ -70,6 +79,8 @@ pub fn router(state: AppState) -> Router {
         .route("/api/debug/donation", post(debug_donation))
         .route("/api/platforms/dx", put(set_dx))
         .route("/api/platforms/da", put(set_da))
+        .route("/api/update", get(update_info))
+        .route("/api/update/install", post(update_install))
         .route("/auth/da/start", get(da_start))
         .route("/auth/da/callback", get(da_callback))
         .layer(middleware::from_fn(same_origin_writes))
@@ -384,6 +395,24 @@ async fn set_da(State(st): State<AppState>, body: Bytes) -> ApiResult {
     st.store.set_setting("da", &Value::Object(cfg))?;
     st.collectors.restart("da");
     Ok(Json(st.collectors.platforms()))
+}
+
+async fn update_info(State(st): State<AppState>) -> Json<Value> {
+    match st.updater.get() {
+        None => Json(json!({"supported": false})),
+        Some(u) => {
+            let info = u.info();
+            Json(json!({"supported": true, "current": info.current, "available": info.available, "installing": info.installing}))
+        }
+    }
+}
+
+async fn update_install(State(st): State<AppState>) -> Result<Response, ApiError> {
+    let Some(u) = st.updater.get() else {
+        return Err(fail(StatusCode::NOT_FOUND, "обновление недоступно в этом режиме"));
+    };
+    u.install().map_err(|e| fail(StatusCode::CONFLICT, e))?;
+    Ok((StatusCode::ACCEPTED, Json(json!({"ok": true}))).into_response())
 }
 
 async fn da_start(State(st): State<AppState>) -> Result<Response, ApiError> {

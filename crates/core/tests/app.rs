@@ -9,6 +9,7 @@ use donatehub_core::app::{build, build_with};
 use donatehub_core::collectors::manager::{BoxFut, Collector, Endpoints};
 use donatehub_core::collectors::base::MarkOk;
 use donatehub_core::store::Store;
+use donatehub_core::updates::{UpdateInfo, Updater};
 use futures_util::StreamExt;
 use http_body_util::BodyExt;
 use serde_json::{Value, json};
@@ -331,4 +332,78 @@ async fn test_da_callback_success_page() {
     assert_eq!(state.store.get_setting("da").unwrap().unwrap()["client_secret"], "s");
     // the state is single-use
     assert_eq!(get(&app, &format!("/auth/da/callback?code=abc&state={st}")).await.status, 400);
+}
+
+// ---------- updates ----------
+
+struct FakeUpdater {
+    info: Mutex<UpdateInfo>,
+    install_result: Result<(), String>,
+    installs: Mutex<u32>,
+}
+
+impl Updater for FakeUpdater {
+    fn info(&self) -> UpdateInfo {
+        self.info.lock().unwrap().clone()
+    }
+    fn install(&self) -> Result<(), String> {
+        *self.installs.lock().unwrap() += 1;
+        self.install_result.clone()
+    }
+}
+
+fn app_with_updater(install_result: Result<(), String>) -> (Router, Arc<FakeUpdater>) {
+    let (router, state) = build(Store::memory(), false, 47321);
+    let fake = Arc::new(FakeUpdater {
+        info: Mutex::new(UpdateInfo { current: "0.3.0".into(), available: Some("0.3.1".into()), installing: false }),
+        install_result,
+        installs: Mutex::new(0),
+    });
+    state.set_updater(fake.clone());
+    (router, fake)
+}
+
+#[tokio::test]
+async fn update_unsupported_without_shell() {
+    let app = app();
+    assert_eq!(get(&app, "/api/update").await.json(), json!({"supported": false}));
+    let r = req(&app, "POST", "/api/update/install", None, &[]).await;
+    assert_eq!(r.status, 404);
+    assert_eq!(r.json()["detail"], "обновление недоступно в этом режиме");
+}
+
+#[tokio::test]
+async fn update_info_from_shell() {
+    let (app, _) = app_with_updater(Ok(()));
+    assert_eq!(
+        get(&app, "/api/update").await.json(),
+        json!({"supported": true, "current": "0.3.0", "available": "0.3.1", "installing": false})
+    );
+}
+
+#[tokio::test]
+async fn update_install_calls_shell() {
+    let (app, fake) = app_with_updater(Ok(()));
+    let r = req(&app, "POST", "/api/update/install", None, &[("origin", "http://127.0.0.1:47321")]).await;
+    assert_eq!(r.status, 202);
+    assert_eq!(r.json(), json!({"ok": true}));
+    assert_eq!(*fake.installs.lock().unwrap(), 1);
+}
+
+#[tokio::test]
+async fn update_install_error_is_409() {
+    let (app, _) = app_with_updater(Err("обновлений нет".into()));
+    let r = req(&app, "POST", "/api/update/install", None, &[]).await;
+    assert_eq!(r.status, 409);
+    assert_eq!(r.json()["detail"], "обновлений нет");
+}
+
+#[tokio::test]
+async fn update_install_cross_site_rejected() {
+    let (app, fake) = app_with_updater(Ok(()));
+    let r = req(&app, "POST", "/api/update/install", None, &[("origin", "https://evil.example")]).await;
+    assert_eq!(r.status, 403);
+    let r = req(&app, "POST", "/api/update/install", None, &[("host", "evil.example")]).await;
+    assert_eq!(r.status, 400);
+    assert_eq!(*fake.installs.lock().unwrap(), 0);
 }

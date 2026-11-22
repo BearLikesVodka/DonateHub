@@ -355,7 +355,7 @@ impl Updater for FakeUpdater {
 fn app_with_updater(install_result: Result<(), String>) -> (Router, Arc<FakeUpdater>) {
     let (router, state) = build(Store::memory(), false, 47321);
     let fake = Arc::new(FakeUpdater {
-        info: Mutex::new(UpdateInfo { current: "0.3.0".into(), available: Some("0.3.1".into()), installing: false }),
+        info: Mutex::new(UpdateInfo { current: "0.3.0".into(), available: Some("0.3.1".into()), installing: false, error: None }),
         install_result,
         installs: Mutex::new(0),
     });
@@ -377,7 +377,7 @@ async fn update_info_from_shell() {
     let (app, _) = app_with_updater(Ok(()));
     assert_eq!(
         get(&app, "/api/update").await.json(),
-        json!({"supported": true, "current": "0.3.0", "available": "0.3.1", "installing": false})
+        json!({"supported": true, "current": "0.3.0", "available": "0.3.1", "installing": false, "error": null})
     );
 }
 
@@ -406,4 +406,11 @@ async fn update_install_cross_site_rejected() {
     let r = req(&app, "POST", "/api/update/install", None, &[("host", "evil.example")]).await;
     assert_eq!(r.status, 400);
     assert_eq!(*fake.installs.lock().unwrap(), 0);
+}
+
+#[tokio::test]
+async fn update_error_reported() {
+    let (app, fake) = app_with_updater(Ok(()));
+    fake.info.lock().unwrap().error = Some("нет связи с GitHub".into());
+    assert_eq!(get(&app, "/api/update").await.json()["error"], "нет связи с GitHub");
 }

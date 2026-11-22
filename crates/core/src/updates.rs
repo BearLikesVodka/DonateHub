@@ -6,6 +6,8 @@ pub struct UpdateInfo {
     pub current: String,
     pub available: Option<String>,
     pub installing: bool,
+    /// Why the last install attempt failed, until the next attempt.
+    pub error: Option<String>,
 }
 
 pub trait Updater: Send + Sync + 'static {

@@ -158,5 +158,13 @@ export function updateBanner(info) {
   if (info.installing) {
     return { text: `Устанавливается версия ${info.available}, программа перезапустится…`, button: null, busy: true };
   }
-  return { text: `Доступна версия ${info.available}`, button: "Обновить", busy: false };
+  if (info.error) {
+    return { text: `Не удалось обновить до ${info.available}: ${info.error}`, button: "Повторить", busy: false };
+  }
+  return { text: `Доступна версия ${info.available}. Обновление перезапустит программу`, button: "Обновить", busy: false };
+}
+
+/** How soon to ask `/api/update` again: often while installing, so a failure shows up quickly. */
+export function updatePollDelay(info) {
+  return info?.installing ? 3000 : 60000;
 }

@@ -1,4 +1,4 @@
-import { GOOGLE_FONTS, formatAmount, formatProgress, fillPercent, updateBanner } from "./render.js";
+import { GOOGLE_FONTS, formatAmount, formatProgress, fillPercent, updateBanner, updatePollDelay } from "./render.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -633,8 +633,12 @@ function connectWs() {
 
 // ---------- updates ----------
 
+let updateTimer;
 async function refreshUpdate() {
-  const banner = updateBanner(await api("GET", "/api/update").catch(() => null));
+  const info = await api("GET", "/api/update").catch(() => null);
+  clearTimeout(updateTimer);
+  updateTimer = setTimeout(refreshUpdate, updatePollDelay(info));
+  const banner = updateBanner(info);
   const el = $("#update-banner");
   el.hidden = !banner;
   if (!banner) return;
@@ -658,7 +662,9 @@ function initUpdate() {
     }),
   );
   refreshUpdate();
-  setInterval(refreshUpdate, 10 * 60 * 1000);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) refreshUpdate();
+  });
 }
 
 async function init() {

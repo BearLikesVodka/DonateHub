@@ -45,3 +45,19 @@ async fn second_server_on_same_port_fails() {
     assert!(Server::start(router2, state2.collectors, port).await.is_err());
     first.stop().await;
 }
+
+#[tokio::test]
+async fn server_restarts_on_same_port_right_after_stop() {
+    // An update or quick quit+relaunch restarts while the old server's closed connections sit in TIME_WAIT.
+    let port = free_port();
+    let (router, state) = build(Store::memory(), false, port);
+    let srv = Server::start(router, state.collectors.clone(), port).await.unwrap();
+    let r = reqwest::Client::new().get(format!("http://127.0.0.1:{port}/api/state")).send().await.unwrap();
+    assert_eq!(r.status(), 200);
+    let (_ws, _) = tokio_tungstenite::connect_async(format!("ws://127.0.0.1:{port}/ws")).await.unwrap();
+    srv.stop().await;
+    assert!(port_free(port), "the app's own port check must not report a busy port");
+    let (router, state) = build(Store::memory(), false, port);
+    let again = Server::start(router, state.collectors.clone(), port).await.unwrap();
+    again.stop().await;
+}

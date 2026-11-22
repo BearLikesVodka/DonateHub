@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { formatAmount, formatProgress, fillPercent, formatRemaining, updateBanner } from "../../static/render.js";
+import { formatAmount, formatProgress, fillPercent, formatRemaining, updateBanner, updatePollDelay } from "../../static/render.js";
 
 test("formatAmount groups thousands with spaces and drops fraction", () => {
   assert.equal(formatAmount(5000), "5 000");
@@ -41,7 +41,7 @@ test("updateBanner covers states", () => {
   assert.equal(updateBanner({ supported: false }), null);
   assert.equal(updateBanner({ supported: true, current: "0.3.0", available: null, installing: false }), null);
   assert.deepEqual(updateBanner({ supported: true, current: "0.3.0", available: "0.3.1", installing: false }), {
-    text: "Доступна версия 0.3.1",
+    text: "Доступна версия 0.3.1. Обновление перезапустит программу",
     button: "Обновить",
     busy: false,
   });
@@ -50,4 +50,17 @@ test("updateBanner covers states", () => {
     button: null,
     busy: true,
   });
+});
+
+test("updateBanner shows a failed update with retry", () => {
+  assert.deepEqual(
+    updateBanner({ supported: true, current: "0.3.0", available: "0.3.1", installing: false, error: "нет связи" }),
+    { text: "Не удалось обновить до 0.3.1: нет связи", button: "Повторить", busy: false },
+  );
+});
+
+test("updatePollDelay is short while installing", () => {
+  assert.equal(updatePollDelay({ supported: true, installing: true }), 3000);
+  assert.equal(updatePollDelay({ supported: true, installing: false }), 60000);
+  assert.equal(updatePollDelay(null), 60000);
 });

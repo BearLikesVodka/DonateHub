@@ -402,7 +402,13 @@ async fn update_info(State(st): State<AppState>) -> Json<Value> {
         None => Json(json!({"supported": false})),
         Some(u) => {
             let info = u.info();
-            Json(json!({"supported": true, "current": info.current, "available": info.available, "installing": info.installing}))
+            Json(json!({
+                "supported": true,
+                "current": info.current,
+                "available": info.available,
+                "installing": info.installing,
+                "error": info.error,
+            }))
         }
     }
 }

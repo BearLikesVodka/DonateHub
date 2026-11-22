@@ -28,17 +28,34 @@ fn init_logging() {
     // HTTP clients may log full request URLs at debug level, and the DonateX hub URL carries the token.
     let filter = tracing_subscriber::EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| "info,reqwest=warn,hyper=warn,hyper_util=warn,tungstenite=warn".into());
-    tracing_subscriber::fmt().with_env_filter(filter).init();
+    let fmt = tracing_subscriber::fmt().with_env_filter(filter);
+    #[cfg(windows)]
+    if let Some(file) = windows_log_file() {
+        // A GUI-subsystem app has no stdout: keep the log next to the data so problems can be diagnosed.
+        fmt.with_ansi(false).with_writer(std::sync::Mutex::new(file)).init();
+        return;
+    }
+    fmt.init();
+}
+
+/// `%APPDATA%\DonateHub\donatehub.log` for this run; the previous run's log is kept as `donatehub.old.log`.
+#[cfg(windows)]
+fn windows_log_file() -> Option<std::fs::File> {
+    let dir = donatehub_core::config::windows_data_dir(&|k| std::env::var(k).ok()).ok()?;
+    let log = dir.join("donatehub.log");
+    let _ = std::fs::rename(&log, dir.join("donatehub.old.log"));
+    std::fs::File::create(log).ok()
 }
 
 fn main() -> anyhow::Result<()> {
+    // Before parsing: `--help`, argument errors and `--headless` output must reach cmd/PowerShell.
+    #[cfg(windows)]
+    attach_parent_console();
     let cli = Cli::parse();
     init_logging();
     let store = Store::open(&data_dir_from_env()?.join("app.db"))?;
     let port = resolve_port(&store, &|k| std::env::var(k).ok());
     if cli.headless {
-        #[cfg(windows)]
-        attach_parent_console();
         return run_headless(store, port);
     }
     std::process::exit(desktop::run(store, port, cli.hidden)?)

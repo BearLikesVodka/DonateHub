@@ -205,7 +205,7 @@ pub fn run(store: Store, port: u16, hidden: bool) -> anyhow::Result<i32> {
                 ask_new_port(&handle, store, port);
                 return Ok(());
             }
-            let updater = crate::updates::DesktopUpdater::new(&handle);
+            let updater = crate::updates::DesktopUpdater::new(&handle, store.clone());
             let started = tauri::async_runtime::block_on(async {
                 let (router, state) = build(store, true, port);
                 if let Some(u) = &updater {

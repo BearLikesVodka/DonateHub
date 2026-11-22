@@ -34,3 +34,14 @@ async fn start_fails_on_busy_port() {
     let (router, state) = build(Store::memory(), false, port);
     assert!(Server::start(router, state.collectors, port).await.is_err());
 }
+
+#[tokio::test]
+async fn second_server_on_same_port_fails() {
+    // Guards Windows, where SO_REUSEADDR would let a second listener take a busy port.
+    let port = free_port();
+    let (router, state) = build(Store::memory(), false, port);
+    let first = Server::start(router, state.collectors.clone(), port).await.unwrap();
+    let (router2, state2) = build(Store::memory(), false, port);
+    assert!(Server::start(router2, state2.collectors, port).await.is_err());
+    first.stop().await;
+}

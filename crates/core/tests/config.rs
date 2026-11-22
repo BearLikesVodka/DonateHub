@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::net::{TcpListener, TcpStream};
 use std::path::Path;
 
-use donatehub_core::config::{data_dir, port_free};
+use donatehub_core::config::{data_dir, port_free, windows_data_dir};
 
 fn env(pairs: &[(&str, &Path)]) -> impl Fn(&str) -> Option<String> {
     let map: HashMap<String, String> =
@@ -10,6 +10,7 @@ fn env(pairs: &[(&str, &Path)]) -> impl Fn(&str) -> Option<String> {
     move |k| map.get(k).cloned()
 }
 
+#[cfg(not(windows))]
 #[test]
 fn test_data_dir_uses_xdg() {
     let tmp = tempfile::tempdir().unwrap();
@@ -18,6 +19,7 @@ fn test_data_dir_uses_xdg() {
     assert!(d.is_dir());
 }
 
+#[cfg(not(windows))]
 #[test]
 fn test_data_dir_default_home() {
     let tmp = tempfile::tempdir().unwrap();
@@ -26,6 +28,7 @@ fn test_data_dir_default_home() {
     assert!(d.is_dir());
 }
 
+#[cfg(not(windows))]
 #[test]
 fn test_data_dir_migrates_old_donation_goal_dir() {
     let tmp = tempfile::tempdir().unwrap();
@@ -38,6 +41,7 @@ fn test_data_dir_migrates_old_donation_goal_dir() {
     assert!(!old.exists());
 }
 
+#[cfg(not(windows))]
 #[test]
 fn test_data_dir_keeps_existing_new_dir() {
     let tmp = tempfile::tempdir().unwrap();
@@ -50,6 +54,27 @@ fn test_data_dir_keeps_existing_new_dir() {
     let d = data_dir(&env(&[("XDG_DATA_HOME", &tmp.path().join("xdg"))])).unwrap();
     assert_eq!(std::fs::read(d.join("app.db")).unwrap(), b"new");
     assert_eq!(std::fs::read(old.join("app.db")).unwrap(), b"old");
+}
+
+#[test]
+fn windows_data_dir_uses_appdata() {
+    let tmp = tempfile::tempdir().unwrap();
+    let d = windows_data_dir(&env(&[("APPDATA", &tmp.path().join("Roaming"))])).unwrap();
+    assert_eq!(d, tmp.path().join("Roaming").join("DonateHub"));
+    assert!(d.is_dir());
+}
+
+#[test]
+fn windows_data_dir_requires_appdata() {
+    assert!(windows_data_dir(&env(&[])).is_err());
+}
+
+#[cfg(windows)]
+#[test]
+fn data_dir_on_windows_uses_appdata() {
+    let tmp = tempfile::tempdir().unwrap();
+    let d = data_dir(&env(&[("APPDATA", tmp.path()), ("XDG_DATA_HOME", &tmp.path().join("xdg"))])).unwrap();
+    assert_eq!(d, tmp.path().join("DonateHub"));
 }
 
 #[test]

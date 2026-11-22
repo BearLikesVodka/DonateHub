@@ -19,7 +19,9 @@ pub struct Server {
 impl Server {
     pub async fn start(router: Router, collectors: Collectors, port: u16) -> anyhow::Result<Server> {
         let socket = tokio::net::TcpSocket::new_v4()?;
-        // Lingering TIME_WAIT connections from the previous run must not block a restart.
+        // Lingering TIME_WAIT connections from the previous run must not block a restart. Not on Windows: there
+        // SO_REUSEADDR would let us take a port another program (or another DonateHub) is listening on.
+        #[cfg(not(windows))]
         socket.set_reuseaddr(true)?;
         socket.bind(SocketAddr::from(([127, 0, 0, 1], port)))?;
         let listener = socket.listen(1024)?;

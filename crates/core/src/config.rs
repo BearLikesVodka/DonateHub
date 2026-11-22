@@ -7,10 +7,14 @@ use socket2::{Domain, Socket, Type};
 pub const DEFAULT_PORT: u16 = 47321;
 pub const APP_DIR: &str = "donatehub";
 pub const OLD_APP_DIR: &str = "donation-goal";
+pub const WINDOWS_APP_DIR: &str = "DonateHub";
 pub const PORT_ENV: &str = "DONATEHUB_PORT";
 
-/// `$XDG_DATA_HOME/donatehub` or `~/.local/share/donatehub`, created if missing.
+/// Linux: `$XDG_DATA_HOME/donatehub` or `~/.local/share/donatehub`; Windows: `%APPDATA%\DonateHub`. Created if missing.
 pub fn data_dir(env: &impl Fn(&str) -> Option<String>) -> std::io::Result<PathBuf> {
+    if cfg!(windows) {
+        return windows_data_dir(env);
+    }
     let base = match env("XDG_DATA_HOME").filter(|s| !s.is_empty()) {
         Some(x) => PathBuf::from(x),
         None => {
@@ -23,6 +27,14 @@ pub fn data_dir(env: &impl Fn(&str) -> Option<String>) -> std::io::Result<PathBu
     if !path.exists() && old.is_dir() {
         std::fs::rename(&old, &path)?; // keep goals, donations and tokens from before the DonateHub rename
     }
+    std::fs::create_dir_all(&path)?;
+    Ok(path)
+}
+
+/// `%APPDATA%\DonateHub`, created if missing. Separate from `data_dir` so it is testable on any OS.
+pub fn windows_data_dir(env: &impl Fn(&str) -> Option<String>) -> std::io::Result<PathBuf> {
+    let base = env("APPDATA").filter(|s| !s.is_empty()).ok_or_else(|| std::io::Error::other("APPDATA is not set"))?;
+    let path = PathBuf::from(base).join(WINDOWS_APP_DIR);
     std::fs::create_dir_all(&path)?;
     Ok(path)
 }
@@ -51,6 +63,8 @@ fn in_range(n: i64) -> Option<u16> {
 pub fn port_free(port: u16) -> bool {
     let Ok(s) = Socket::new(Domain::IPV4, Type::STREAM, None) else { return false };
     // Same option the server uses, so lingering TIME_WAIT connections don't count as "busy".
+    // Not on Windows: there SO_REUSEADDR lets a socket bind a port another program is listening on.
+    #[cfg(not(windows))]
     if s.set_reuse_address(true).is_err() {
         return false;
     }
